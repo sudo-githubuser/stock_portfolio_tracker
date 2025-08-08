@@ -15,8 +15,27 @@ class _AddStockScreenState extends State<AddStockScreen> {
   final TextEditingController _buyDateController = TextEditingController();
   final TextEditingController _sellDateController = TextEditingController();
 
-  String _selectedAction = 'Buy'; // Default to Buy
+  String _selectedAction = 'Buy';
   double _grossPnL = 0.0;
+
+  // Validation error states
+  Map<String, bool> _fieldErrors = {
+    'stockName': false,
+    'quantity': false,
+    'buyPrice': false,
+    'sellPrice': false,
+    'buyDate': false,
+    'sellDate': false,
+  };
+
+  Map<String, String> _errorMessages = {
+    'stockName': 'Please enter stock name',
+    'quantity': 'Please enter quantity',
+    'buyPrice': 'Please enter buy price',
+    'sellPrice': 'Please enter sell price',
+    'buyDate': 'Please select buy date',
+    'sellDate': 'Please select sell date',
+  };
 
   @override
   void initState() {
@@ -29,10 +48,31 @@ class _AddStockScreenState extends State<AddStockScreen> {
       _sellPriceController.clear();
       _sellDateController.clear();
     }
-    // Calculate PnL when values change
-    _quantityController.addListener(_calculatePnL);
-    _buyPriceController.addListener(_calculatePnL);
-    _sellPriceController.addListener(_calculatePnL);
+
+    // Clear errors when user starts typing
+    _stockNameController.addListener(() => _clearFieldError('stockName'));
+    _quantityController.addListener(() {
+      _clearFieldError('quantity');
+      _calculatePnL();
+    });
+    _buyPriceController.addListener(() {
+      _clearFieldError('buyPrice');
+      _calculatePnL();
+    });
+    _sellPriceController.addListener(() {
+      _clearFieldError('sellPrice');
+      _calculatePnL();
+    });
+    _buyDateController.addListener(() => _clearFieldError('buyDate'));
+    _sellDateController.addListener(() => _clearFieldError('sellDate'));
+  }
+
+  void _clearFieldError(String field) {
+    if (_fieldErrors[field] == true) {
+      setState(() {
+        _fieldErrors[field] = false;
+      });
+    }
   }
 
   void _calculatePnL() {
@@ -49,6 +89,59 @@ class _AddStockScreenState extends State<AddStockScreen> {
         _grossPnL = (sellPrice - buyPrice) * quantity;
       });
     }
+  }
+
+  bool _validateForm() {
+    bool isValid = true;
+
+    // Reset all errors
+    _fieldErrors.updateAll((key, value) => false);
+
+    // Check stock name
+    if (_stockNameController.text.trim().isEmpty) {
+      _fieldErrors['stockName'] = true;
+      isValid = false;
+    }
+
+    // Check quantity
+    if (_quantityController.text.trim().isEmpty ||
+        double.tryParse(_quantityController.text) == null ||
+        double.parse(_quantityController.text) <= 0) {
+      _fieldErrors['quantity'] = true;
+      isValid = false;
+    }
+
+    // Check buy price (always required)
+    if (_buyPriceController.text.trim().isEmpty ||
+        double.tryParse(_buyPriceController.text) == null ||
+        double.parse(_buyPriceController.text) <= 0) {
+      _fieldErrors['buyPrice'] = true;
+      isValid = false;
+    }
+
+    // Check buy date (always required)
+    if (_buyDateController.text.trim().isEmpty) {
+      _fieldErrors['buyDate'] = true;
+      isValid = false;
+    }
+
+    // Check sell-specific fields if action is Sell
+    if (_selectedAction == 'Sell') {
+      if (_sellPriceController.text.trim().isEmpty ||
+          double.tryParse(_sellPriceController.text) == null ||
+          double.parse(_sellPriceController.text) <= 0) {
+        _fieldErrors['sellPrice'] = true;
+        isValid = false;
+      }
+
+      if (_sellDateController.text.trim().isEmpty) {
+        _fieldErrors['sellDate'] = true;
+        isValid = false;
+      }
+    }
+
+    setState(() {});
+    return isValid;
   }
 
   @override
@@ -81,23 +174,27 @@ class _AddStockScreenState extends State<AddStockScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Stock Name
+            // Stock Name - MANDATORY
             _buildTextField(
               controller: _stockNameController,
-              label: 'Stock Name',
+              label: 'Stock Name *',
               hint: 'e.g., AAPL',
               enabled: true,
+              hasError: _fieldErrors['stockName'] ?? false,
+              errorMessage: _errorMessages['stockName']!,
             ),
 
             SizedBox(height: 16),
 
-            // Quantity
+            // Quantity - MANDATORY
             _buildTextField(
               controller: _quantityController,
-              label: 'Quantity',
+              label: 'Quantity *',
               hint: 'Number of shares',
               keyboardType: TextInputType.number,
               enabled: true,
+              hasError: _fieldErrors['quantity'] ?? false,
+              errorMessage: _errorMessages['quantity']!,
             ),
 
             SizedBox(height: 16),
@@ -107,42 +204,50 @@ class _AddStockScreenState extends State<AddStockScreen> {
 
             SizedBox(height: 16),
 
-            // Buy Price
+            // Buy Price - MANDATORY
             _buildTextField(
               controller: _buyPriceController,
-              label: 'Buy Price',
+              label: 'Buy Price *',
               hint: '₹0.00',
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               enabled: _selectedAction == 'Buy' || _selectedAction == 'Sell',
+              hasError: _fieldErrors['buyPrice'] ?? false,
+              errorMessage: _errorMessages['buyPrice']!,
             ),
 
             SizedBox(height: 16),
 
-            // Sell Price
+            // Sell Price - MANDATORY for Sell action
             _buildTextField(
               controller: _sellPriceController,
-              label: 'Sell Price',
+              label: _selectedAction == 'Sell' ? 'Sell Price *' : 'Sell Price',
               hint: '₹0.00',
               keyboardType: TextInputType.numberWithOptions(decimal: true),
               enabled: _selectedAction == 'Sell',
+              hasError: _fieldErrors['sellPrice'] ?? false,
+              errorMessage: _errorMessages['sellPrice']!,
             ),
 
             SizedBox(height: 16),
 
-            // Buy Date
+            // Buy Date - MANDATORY
             _buildDateField(
               controller: _buyDateController,
-              label: 'Buy Date',
+              label: 'Buy Date *',
               enabled: _selectedAction == 'Buy' || _selectedAction == 'Sell',
+              hasError: _fieldErrors['buyDate'] ?? false,
+              errorMessage: _errorMessages['buyDate']!,
             ),
 
             SizedBox(height: 16),
 
-            // Sell Date
+            // Sell Date - MANDATORY for Sell action
             _buildDateField(
               controller: _sellDateController,
-              label: 'Sell Date',
+              label: _selectedAction == 'Sell' ? 'Sell Date *' : 'Sell Date',
               enabled: _selectedAction == 'Sell',
+              hasError: _fieldErrors['sellDate'] ?? false,
+              errorMessage: _errorMessages['sellDate']!,
             ),
 
             SizedBox(height: 16),
@@ -252,6 +357,8 @@ class _AddStockScreenState extends State<AddStockScreen> {
     required String hint,
     TextInputType? keyboardType,
     required bool enabled,
+    required bool hasError,
+    required String errorMessage,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -275,22 +382,47 @@ class _AddStockScreenState extends State<AddStockScreen> {
             fillColor: enabled ? Colors.white : Colors.grey[100],
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.iosSeparator),
+              borderSide: BorderSide(
+                color: hasError ? Colors.red : AppColors.iosSeparator,
+                width: hasError ? 2 : 1,
+              ),
             ),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.iosSeparator),
+              borderSide: BorderSide(
+                color: hasError ? Colors.red : AppColors.iosSeparator,
+                width: hasError ? 2 : 1,
+              ),
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.iosBlue, width: 2),
+              borderSide: BorderSide(
+                color: hasError ? Colors.red : AppColors.iosBlue,
+                width: 2,
+              ),
             ),
             disabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: BorderSide(color: AppColors.iosSeparator.withOpacity(0.5)),
+              borderSide: BorderSide(
+                color: AppColors.iosSeparator.withOpacity(0.5),
+              ),
+            ),
+            errorBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(12),
+              borderSide: BorderSide(color: Colors.red, width: 2),
             ),
           ),
         ),
+        if (hasError) ...[
+          SizedBox(height: 4),
+          Text(
+            errorMessage,
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -318,6 +450,9 @@ class _AddStockScreenState extends State<AddStockScreen> {
                     _sellPriceController.clear();
                     _sellDateController.clear();
                     _grossPnL = 0.0;
+                    // Clear sell-specific errors when switching to Buy
+                    _fieldErrors['sellPrice'] = false;
+                    _fieldErrors['sellDate'] = false;
                   });
                 },
                 child: Container(
@@ -380,6 +515,8 @@ class _AddStockScreenState extends State<AddStockScreen> {
     required TextEditingController controller,
     required String label,
     required bool enabled,
+    required bool hasError,
+    required String errorMessage,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -401,26 +538,46 @@ class _AddStockScreenState extends State<AddStockScreen> {
               enabled: enabled,
               decoration: InputDecoration(
                 hintText: 'Select date',
-                suffixIcon: Icon(Icons.calendar_today,
-                    color: enabled ? AppColors.iosBlue : AppColors.iosGray),
+                suffixIcon: Icon(
+                  Icons.calendar_today,
+                  color: enabled ? (hasError ? Colors.red : AppColors.iosBlue) : AppColors.iosGray,
+                ),
                 filled: true,
                 fillColor: enabled ? Colors.white : Colors.grey[100],
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.iosSeparator),
+                  borderSide: BorderSide(
+                    color: hasError ? Colors.red : AppColors.iosSeparator,
+                    width: hasError ? 2 : 1,
+                  ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.iosSeparator),
+                  borderSide: BorderSide(
+                    color: hasError ? Colors.red : AppColors.iosSeparator,
+                    width: hasError ? 2 : 1,
+                  ),
                 ),
                 disabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: AppColors.iosSeparator.withOpacity(0.5)),
+                  borderSide: BorderSide(
+                    color: AppColors.iosSeparator.withOpacity(0.5),
+                  ),
                 ),
               ),
             ),
           ),
         ),
+        if (hasError) ...[
+          SizedBox(height: 4),
+          Text(
+            errorMessage,
+            style: TextStyle(
+              color: Colors.red,
+              fontSize: 12,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -452,14 +609,8 @@ class _AddStockScreenState extends State<AddStockScreen> {
   }
 
   void _submitForm() {
-    // Add validation and submission logic here
-    if (_stockNameController.text.isEmpty || _quantityController.text.isEmpty) {
-      Get.snackbar(
-        'Error',
-        'Please fill in all required fields',
-        backgroundColor: Colors.red.withOpacity(0.1),
-        colorText: Colors.red,
-      );
+    if (!_validateForm()) {
+      // Scroll to first error field
       return;
     }
 
