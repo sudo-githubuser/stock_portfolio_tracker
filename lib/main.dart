@@ -2,10 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get/get.dart';
 import 'core/constants/colors.dart';
+import 'core/services/network_service.dart';
+import 'core/database/database_helper.dart';
 import 'features/welcome/presentation/pages/welcome_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize services
+  NetworkService().initialize();
+  await DatabaseHelper().database; // Initialize database
 
   // Set iOS style status bar
   SystemChrome.setSystemUIOverlayStyle(
@@ -26,12 +32,10 @@ class MyApp extends StatelessWidget {
       title: 'Portfolio Tracker App',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
-        // iOS inspired theme
         primaryColor: AppColors.iosBlue,
         scaffoldBackgroundColor: AppColors.iosBackground,
-        fontFamily: 'SF Pro Text', // iOS system font (or use default)
+        fontFamily: 'SF Pro Text',
 
-        // App bar theme
         appBarTheme: AppBarTheme(
           elevation: 0,
           backgroundColor: Colors.white,
@@ -39,7 +43,6 @@ class MyApp extends StatelessWidget {
           systemOverlayStyle: SystemUiOverlayStyle.dark,
         ),
 
-        // Card theme
         cardTheme: CardThemeData(
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -47,7 +50,6 @@ class MyApp extends StatelessWidget {
           ),
         ),
 
-        // Button theme
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
             elevation: 0,
@@ -57,7 +59,6 @@ class MyApp extends StatelessWidget {
           ),
         ),
 
-        // Text theme with iOS typography
         textTheme: TextTheme(
           headlineLarge: TextStyle(
             fontSize: 34,

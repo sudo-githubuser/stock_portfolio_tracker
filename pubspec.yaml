@@ -39,6 +39,13 @@ dependencies:
   curved_navigation_bar: ^1.0.6  # For smooth curved bottom navigation
   google_nav_bar: ^5.0.6         # For iOS style nav bar
   flip_card: ^0.7.0  # Add this for flip card functionality
+  dio: ^5.4.0  # Better HTTP client
+  flutter_secure_storage: ^9.0.0  # Secure API key storage
+  connectivity_plus: ^5.0.0  # Check internet connection
+  sqflite: ^2.3.0               # Local SQLite database
+  path: ^1.8.3                  # Path utilities
+  crypto: ^3.0.3                # For data encryption
+  intl: ^0.19.0                 # Date formatting
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
