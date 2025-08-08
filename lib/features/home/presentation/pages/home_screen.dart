@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/strings.dart';
-import '../../../portfolio/presentation/pages/holdings_summary_screen.dart';
 import '../widgets/side_menu.dart';
+import '../../../portfolio/presentation/pages/holdings_summary_screen.dart';
 import '../../../portfolio/presentation/pages/current_holdings_screen.dart';
 import '../../../portfolio/presentation/pages/analysis_screen.dart';
 
@@ -14,7 +14,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   int _currentIndex = 0;
-  late TabController _tabController;
+  late PageController _pageController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   final List<Widget> _screens = [
@@ -32,18 +32,24 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
-    _tabController.addListener(() {
-      setState(() {
-        _currentIndex = _tabController.index;
-      });
-    });
+    _pageController = PageController(initialPage: _currentIndex);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
+    _pageController.dispose();
     super.dispose();
+  }
+
+  void _onTabTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+    _pageController.animateToPage(
+      index,
+      duration: Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
   }
 
   @override
@@ -101,59 +107,87 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
                     ),
                   ),
 
-                  SizedBox(width: 34), // Balance the layout
+                  SizedBox(width: 34),
                 ],
               ),
             ),
 
-            // Top tabs (iOS style segmented control look)
+            // UPDATED: Top tabs with underline indicator, no outline
             Container(
-              margin: EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(12),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.05),
-                    blurRadius: 10,
-                    offset: Offset(0, 2),
+              color: Colors.white,
+              child: Column(
+                children: [
+                  // Tab titles
+                  Row(
+                    children: _tabTitles.asMap().entries.map((entry) {
+                      int index = entry.key;
+                      String title = entry.value;
+                      bool isSelected = _currentIndex == index;
+
+                      return Expanded(
+                        child: GestureDetector(
+                          onTap: () => _onTabTapped(index),
+                          child: Container(
+                            padding: EdgeInsets.symmetric(vertical: 16),
+                            child: Text(
+                              title,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 15, // SAME SIZE FOR ALL
+                                fontWeight: FontWeight.w600,
+                                color: isSelected
+                                    ? AppColors.iosBlue
+                                    : AppColors.iosGray,
+                                letterSpacing: 0.1,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    }).toList(),
                   ),
-                ],
-              ),
-              child: TabBar(
-                controller: _tabController,
-                indicatorSize: TabBarIndicatorSize.tab,
-                indicator: BoxDecoration(
-                  color: AppColors.iosBlue,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                labelColor: Colors.white,
-                unselectedLabelColor: AppColors.iosGray,
-                labelStyle: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: 0.1,
-                ),
-                unselectedLabelStyle: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w400,
-                ),
-                tabs: _tabTitles.map((title) => Tab(
-                  child: Container(
-                    padding: EdgeInsets.symmetric(vertical: 12),
-                    child: FittedBox(
-                      fit: BoxFit.scaleDown,
-                      child: Text(title),
+
+                  // Underline indicator
+                  Container(
+                    height: 2,
+                    child: Stack(
+                      children: [
+                        // Background line (optional light gray)
+                        Container(
+                          width: double.infinity,
+                          height: 2,
+                          color: AppColors.iosSeparator.withOpacity(0.3),
+                        ),
+                        // Active indicator line
+                        AnimatedContainer(
+                          duration: Duration(milliseconds: 300),
+                          curve: Curves.easeInOut,
+                          width: MediaQuery.of(context).size.width / 3,
+                          height: 2,
+                          margin: EdgeInsets.only(
+                            left: (_currentIndex * MediaQuery.of(context).size.width / 3),
+                          ),
+                          decoration: BoxDecoration(
+                            color: AppColors.iosBlue,
+                            borderRadius: BorderRadius.circular(1),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                )).toList(),
+                ],
               ),
             ),
 
-            // Tab content with smooth page transitions
+            // Page content with synchronized animation
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
+              child: PageView(
+                controller: _pageController,
+                onPageChanged: (index) {
+                  setState(() {
+                    _currentIndex = index;
+                  });
+                },
                 children: _screens,
               ),
             ),
@@ -161,7 +195,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         ),
       ),
 
-      // Curved bottom navigation with smooth animations
+      // Synchronized Curved bottom navigation
       bottomNavigationBar: CurvedNavigationBar(
         index: _currentIndex,
         height: 60,
@@ -170,17 +204,12 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           _buildNavIcon(Icons.account_balance_wallet_outlined, 1),
           _buildNavIcon(Icons.analytics_outlined, 2),
         ],
-        color: Colors.white,
-        buttonBackgroundColor: AppColors.iosBlue,
+        color: Colors.blue,
+        buttonBackgroundColor: Colors.blueGrey,
         backgroundColor: AppColors.iosBackground,
-        animationCurve: Curves.easeInOutCubic, // Smooth wavy animation
-        animationDuration: Duration(milliseconds: 400),
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-            _tabController.animateTo(index);
-          });
-        },
+        animationCurve: Curves.easeInOut,
+        animationDuration: Duration(milliseconds: 300),
+        onTap: _onTabTapped,
       ),
     );
   }
@@ -190,7 +219,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Icon(
       icon,
       size: isSelected ? 26 : 24,
-      color: isSelected ? Colors.white : AppColors.iosGray,
+      color: isSelected ? Colors.white : AppColors.iosCard,
     );
   }
 }

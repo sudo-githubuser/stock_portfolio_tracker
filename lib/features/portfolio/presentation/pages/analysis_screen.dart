@@ -5,7 +5,7 @@ import '../../../../core/constants/colors.dart';
 class AnalysisScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SingleChildScrollView(
       padding: EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,13 +76,15 @@ class AnalysisScreen extends StatelessWidget {
 
           SizedBox(height: 20),
 
-          // Analysis cards
-          Expanded(
+          // Analysis cards - FIXED: Using proper layout
+          SizedBox(
+            height: 300, // Fixed height for grid
             child: GridView.count(
               crossAxisCount: 2,
               crossAxisSpacing: 12,
               mainAxisSpacing: 12,
               childAspectRatio: 1.5,
+              physics: NeverScrollableScrollPhysics(), // Disable grid scrolling
               children: [
                 _buildAnalysisCard(
                   title: 'Diversification',
@@ -131,7 +133,7 @@ class AnalysisScreen extends StatelessWidget {
     required Color color,
   }) {
     return Container(
-      padding: EdgeInsets.all(16),
+      padding: EdgeInsets.all(12), // Reduced padding
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
@@ -145,6 +147,7 @@ class AnalysisScreen extends StatelessWidget {
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Row(
             children: [
@@ -161,30 +164,30 @@ class AnalysisScreen extends StatelessWidget {
                 child: Text(
                   title,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: 13, // Reduced font size
                     color: AppColors.iosSecondaryText,
                     fontWeight: FontWeight.w500,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
             ],
           ),
-          SizedBox(height: 8),
           Text(
             value,
             style: TextStyle(
-              fontSize: 20,
+              fontSize: 18, // Reduced font size
               fontWeight: FontWeight.w700,
               color: AppColors.iosText,
             ),
           ),
-          SizedBox(height: 4),
           Text(
             subtitle,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: 11, // Reduced font size
               color: AppColors.iosSecondaryText,
             ),
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),

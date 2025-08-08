@@ -26,6 +26,7 @@ class AppColors {
   static const Color iosText = Color(0xFF000000);
   static const Color iosSecondaryText = Color(0xFF3C3C43);
   static const Color iosSeparator = Color(0xFFC6C6C8);
+  static const Color iosGreen = Color(0xFF34C759);
 
   // Tab colors
   static const Color activeTab = Color(0xFF34C759);

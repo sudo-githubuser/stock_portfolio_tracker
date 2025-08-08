@@ -78,112 +78,116 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       body: Container(
-        decoration: BoxDecoration(gradient: AppColors.metallicGreenGradient),
+        // UPDATED GRADIENT AS REQUESTED
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [Colors.green.shade900, Color(0xFF0D1F14)],
+            begin: Alignment.centerLeft,
+            end: Alignment.centerRight,
+          ),
+        ),
         child: SafeArea(
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              // Logo and text section
               Expanded(
-                flex: 2,
-                child: Center(
-                  child: AnimatedBuilder(
-                    animation: _logoAnimation,
-                    builder: (context, child) {
-                      return Transform.scale(
-                        scale: _logoAnimation.value,
-                        child: Container(
-                          width: 100,
-                          height: 100,
-                          decoration: BoxDecoration(
-                            color: Colors.white,
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                blurRadius: 20,
-                                offset: Offset(0, 10),
-                              ),
-                            ],
-                          ),
-                          child: Icon(
-                            Icons.trending_up,
-                            size: 50,
-                            color: AppColors.iosBlue,
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
-              ),
-
-              Expanded(
-                flex: 2,
-                child: AnimatedBuilder(
-                  animation: _textAnimation,
-                  builder: (context, child) {
-                    return Opacity(
-                      opacity: _textAnimation.value,
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          // iOS style animated title
-                          AnimatedTextKit(
-                            animatedTexts: [
-                              TypewriterAnimatedText(
-                                'Welcome to PTA',
-                                textStyle: TextStyle(
-                                  fontSize: 28,
-                                  fontWeight: FontWeight.w600, // iOS style font weight
-                                  color: Colors.white,
-                                  letterSpacing: 0.5,
+                flex: 3,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo
+                    AnimatedBuilder(
+                      animation: _logoAnimation,
+                      builder: (context, child) {
+                        return Transform.scale(
+                          scale: _logoAnimation.value,
+                          child: Container(
+                            width: 90,
+                            height: 90,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.3),
+                                  blurRadius: 20,
+                                  offset: Offset(0, 10),
                                 ),
-                                speed: Duration(milliseconds: 150),
-                              ),
-                            ],
-                            totalRepeatCount: 1,
-                          ),
-
-                          SizedBox(height: 16),
-
-                          // Subtitle with iOS typography
-                          FadeTransition(
-                            opacity: _textAnimation,
-                            child: Text(
-                              AppStrings.welcomeSubtitle,
-                              style: TextStyle(
-                                fontSize: 17, // iOS standard body size
-                                fontWeight: FontWeight.w400,
-                                color: Colors.white.withOpacity(0.8),
-                                letterSpacing: 0.2,
-                              ),
-                              textAlign: TextAlign.center,
-                            ),
-                          ),
-
-                          SizedBox(height: 40),
-
-                          // Feature highlights with iOS icons
-                          FadeTransition(
-                            opacity: _textAnimation,
-                            child: Column(
-                              children: [
-                                _buildFeatureItem(Icons.pie_chart_outline, 'Track Performance'),
-                                SizedBox(height: 12),
-                                _buildFeatureItem(Icons.trending_up, 'Real-time Data'),
-                                SizedBox(height: 12),
-                                _buildFeatureItem(Icons.security, 'Secure & Reliable'),
                               ],
                             ),
+                            child: Icon(
+                              Icons.trending_up,
+                              size: 45,
+                              color: AppColors.iosBlue,
+                            ),
                           ),
-                        ],
-                      ),
-                    );
-                  },
+                        );
+                      },
+                    ),
+
+                    SizedBox(height: 30),
+
+                    // Text content
+                    AnimatedBuilder(
+                      animation: _textAnimation,
+                      builder: (context, child) {
+                        return Opacity(
+                          opacity: _textAnimation.value,
+                          child: Column(
+                            children: [
+                              // Animated title
+                              AnimatedTextKit(
+                                animatedTexts: [
+                                  TypewriterAnimatedText(
+                                    'Welcome to PTA',
+                                    textStyle: TextStyle(
+                                      fontSize: 28,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.white,
+                                      letterSpacing: 0.5,
+                                    ),
+                                    speed: Duration(milliseconds: 150),
+                                  ),
+                                ],
+                                totalRepeatCount: 1,
+                              ),
+
+                              SizedBox(height: 16),
+
+                              // Subtitle
+                              Text(
+                                AppStrings.welcomeSubtitle,
+                                style: TextStyle(
+                                  fontSize: 17,
+                                  fontWeight: FontWeight.w400,
+                                  color: Colors.white.withOpacity(0.9),
+                                  letterSpacing: 0.2,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+
+                              SizedBox(height: 30),
+
+                              // Feature highlights
+                              Column(
+                                children: [
+                                  _buildFeatureItem(Icons.pie_chart_outline, 'Track Performance'),
+                                  SizedBox(height: 10),
+                                  _buildFeatureItem(Icons.trending_up, 'Real-time Data'),
+                                  SizedBox(height: 10),
+                                  _buildFeatureItem(Icons.security, 'Secure & Reliable'),
+                                ],
+                              ),
+                            ],
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                 ),
               ),
 
-              // Regular sized iOS style button
+              // Button section
               Expanded(
                 flex: 1,
                 child: AnimatedBuilder(
@@ -192,10 +196,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                     return Transform.scale(
                       scale: _buttonAnimation.value,
                       child: Padding(
-                        padding: EdgeInsets.symmetric(horizontal: 60),
+                        // APPLIED YOUR PADDING PREFERENCES
+                        padding: EdgeInsets.symmetric(horizontal: 110, vertical: 60),
                         child: SizedBox(
                           width: double.infinity,
-                          height: 50, // Regular iOS button height
+                          height: 44,
                           child: ElevatedButton(
                             onPressed: () {
                               Get.to(() => HomeScreen(),
@@ -205,16 +210,16 @@ class _WelcomeScreenState extends State<WelcomeScreen>
                             style: ElevatedButton.styleFrom(
                               backgroundColor: Colors.white,
                               foregroundColor: AppColors.iosBlue,
-                              elevation: 0, // iOS style - no elevation
+                              elevation: 0,
                               shadowColor: Colors.transparent,
                               shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12), // iOS corner radius
+                                borderRadius: BorderRadius.circular(10),
                               ),
                             ),
                             child: Text(
                               AppStrings.getStarted,
                               style: TextStyle(
-                                fontSize: 17, // iOS standard button text size
+                                fontSize: 16,
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: 0.2,
                               ),

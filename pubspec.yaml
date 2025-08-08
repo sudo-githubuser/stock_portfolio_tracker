@@ -38,6 +38,7 @@ dependencies:
   get: ^4.6.6
   curved_navigation_bar: ^1.0.6  # For smooth curved bottom navigation
   google_nav_bar: ^5.0.6         # For iOS style nav bar
+  flip_card: ^0.7.0  # Add this for flip card functionality
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../../../core/constants/colors.dart';
+import 'add_stock_screen.dart';
+import 'dhan_login_screen.dart';
 
 class CurrentHoldingsScreen extends StatelessWidget {
   @override
@@ -9,38 +12,89 @@ class CurrentHoldingsScreen extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Add stock button
-          SizedBox(
-            width: double.infinity,
-            height: 50,
-            child: ElevatedButton(
-              onPressed: () {
-                // Show add stock dialog
-                _showAddStockDialog(context);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.iosBlue,
-                foregroundColor: Colors.white,
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.add, size: 20),
-                  SizedBox(width: 8),
-                  Text(
-                    'Add Stock',
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+          // Two buttons side by side - FIXED OVERFLOW
+          Row(
+            children: [
+              Expanded(
+                flex: 1,
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Get.to(() => AddStockScreen(),
+                          transition: Transition.cupertino);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.iosBlue,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min, // FIXED: Prevents overflow
+                      children: [
+                        Icon(Icons.add, size: 18),
+                        SizedBox(width: 6),
+                        Flexible( // FIXED: Allows text to shrink if needed
+                          child: Text(
+                            'Add Stock',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
-            ),
+
+              SizedBox(width: 12),
+
+              Expanded(
+                flex: 1,
+                child: SizedBox(
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Get.to(() => DhanLoginScreen(),
+                          transition: Transition.cupertino);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.secondary,
+                      foregroundColor: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      mainAxisSize: MainAxisSize.min, // FIXED: Prevents overflow
+                      children: [
+                        Icon(Icons.cloud_download, size: 18),
+                        SizedBox(width: 6),
+                        Flexible( // FIXED: Allows text to shrink if needed
+                          child: Text(
+                            'Fetch Holdings',
+                            style: TextStyle(
+                              fontSize: 12, // Made smaller to fit
+                              fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
 
           SizedBox(height: 20),
@@ -147,51 +201,6 @@ class CurrentHoldingsScreen extends StatelessWidget {
         onTap: () {
           // Navigate to stock details
         },
-      ),
-    );
-  }
-
-  void _showAddStockDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Add Stock'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Stock Symbol',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-            ),
-            SizedBox(height: 16),
-            TextField(
-              decoration: InputDecoration(
-                labelText: 'Quantity',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(8),
-                ),
-              ),
-              keyboardType: TextInputType.number,
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // Add stock logic
-            },
-            child: Text('Add'),
-          ),
-        ],
       ),
     );
   }
