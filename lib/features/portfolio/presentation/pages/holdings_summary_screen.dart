@@ -1,61 +1,110 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/colors.dart';
+import '../../../../core/services/portfolio_service.dart';
 import '../widgets/portfolio_card.dart';
 
-class HoldingsSummaryScreen extends StatelessWidget {
+class HoldingsSummaryScreen extends StatefulWidget {
+  @override
+  _HoldingsSummaryScreenState createState() => _HoldingsSummaryScreenState();
+}
+
+class _HoldingsSummaryScreenState extends State<HoldingsSummaryScreen> {
+  List<dynamic> holdings = [];
+  Map<String, dynamic> portfolioSummary = {};
+  bool isLoading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPortfolioData();
+  }
+
+  void _loadPortfolioData() async {
+    setState(() => isLoading = true);
+
+    try {
+      final portfolioService = PortfolioService();
+      final holdingsList = await portfolioService.getAllHoldings();
+      final summary = await portfolioService.getPortfolioSummary();
+
+      setState(() {
+        holdings = holdingsList;
+        portfolioSummary = summary;
+        isLoading = false;
+      });
+    } catch (e) {
+      setState(() => isLoading = false);
+      print('Error loading portfolio data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Portfolio Card - ADDED AS REQUESTED
+          // Portfolio Card - This will show real data now
           PortfolioCard(),
 
-          // Rest of the existing content
-          Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Holdings Breakdown',
-                  style: TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.iosText,
+          if (isLoading)
+            Center(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: CircularProgressIndicator(),
+              ),
+            )
+          else
+          // Holdings breakdown
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Holdings Breakdown',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.iosText,
+                    ),
                   ),
-                ),
 
-                SizedBox(height: 12),
+                  SizedBox(height: 12),
 
-                // Holdings list
-                ...List.generate(5, (index) => Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: _buildHoldingItem(
-                    symbol: 'AAPL',
-                    name: 'Apple Inc.',
-                    quantity: '10',
-                    value: '₹15,000',
-                    change: '+2.34%',
-                  ),
-                )),
-              ],
+                  if (holdings.isEmpty)
+                    Container(
+                      padding: EdgeInsets.all(32),
+                      child: Center(
+                        child: Column(
+                          children: [
+                            Icon(Icons.pie_chart_outline, size: 60, color: Colors.grey[400]),
+                            SizedBox(height: 16),
+                            Text(
+                              'No holdings to display',
+                              style: TextStyle(
+                                fontSize: 16,
+                                color: Colors.grey[600],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    )
+                  else
+                  // Holdings list
+                    ...holdings.map((holding) => _buildHoldingItem(holding)).toList(),
+                ],
+              ),
             ),
-          ),
         ],
       ),
     );
   }
 
-  Widget _buildHoldingItem({
-    required String symbol,
-    required String name,
-    required String quantity,
-    required String value,
-    required String change,
-  }) {
+  Widget _buildHoldingItem(dynamic holding) {
     return Container(
+      margin: EdgeInsets.only(bottom: 8),
       padding: EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
@@ -79,7 +128,7 @@ class HoldingsSummaryScreen extends StatelessWidget {
             ),
             child: Center(
               child: Text(
-                symbol.substring(0, 2),
+                holding.symbol.substring(0, 2),
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
@@ -94,7 +143,7 @@ class HoldingsSummaryScreen extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  symbol,
+                  holding.symbol,
                   style: TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -102,7 +151,7 @@ class HoldingsSummaryScreen extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  '$quantity shares',
+                  '${holding.quantity} shares',
                   style: TextStyle(
                     fontSize: 14,
                     color: AppColors.iosSecondaryText,
@@ -115,7 +164,7 @@ class HoldingsSummaryScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text(
-                value,
+                '₹${holding.currentValue.toStringAsFixed(0)}',
                 style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w600,
@@ -123,11 +172,11 @@ class HoldingsSummaryScreen extends StatelessWidget {
                 ),
               ),
               Text(
-                change,
+                '${holding.pnl >= 0 ? '+' : ''}${holding.pnlPercent.toStringAsFixed(2)}%',
                 style: TextStyle(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
-                  color: Colors.green,
+                  color: holding.pnl >= 0 ? Colors.green : Colors.red,
                 ),
               ),
             ],

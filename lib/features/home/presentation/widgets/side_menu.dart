@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/strings.dart';
+import '../../../api_keys/presentation/pages/api_keys_screen.dart';
 
 class SideMenu extends StatelessWidget {
   @override
@@ -82,6 +84,17 @@ class SideMenu extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(context);
                         // Navigate to profile
+                      },
+                    ),
+
+                    // NEW: API Keys section
+                    _buildMenuItem(
+                      icon: Icons.vpn_key_outlined,
+                      title: 'API Keys',
+                      onTap: () {
+                        Navigator.pop(context);
+                        Get.to(() => ApiKeysScreen(),
+                            transition: Transition.cupertino);
                       },
                     ),
 

@@ -32,18 +32,37 @@ class HoldingModel {
         updatedAt = updatedAt ?? DateTime.now();
 
   factory HoldingModel.fromDhanJson(Map<String, dynamic> json) {
-    final quantity = double.tryParse(json['totalQty']?.toString() ?? '0') ?? 0.0;
-    final avgPrice = double.tryParse(json['avgPrice']?.toString() ?? '0') ?? 0.0;
-    final ltp = double.tryParse(json['ltp']?.toString() ?? '0') ?? 0.0;
+    print('Parsing Dhan JSON: $json'); // Debug print
+
+    // Based on Dhan API documentation
+    final quantity = _parseDouble(json['totalQty'] ?? 0);
+    final avgPrice = _parseDouble(json['avgCostPrice'] ?? 0);
+
+    // For current price, we'll use avgPrice initially since Dhan doesn't provide current market price in holdings
+    // We'll need to fetch this separately from market data API
+    final currentPrice = avgPrice; // Will be updated later with market data
+
+    final symbol = json['tradingSymbol']?.toString() ?? 'UNKNOWN';
 
     return HoldingModel(
-      symbol: json['tradingSymbol'] ?? '',
-      name: json['companyName'] ?? json['tradingSymbol'] ?? '',
+      symbol: symbol.toUpperCase(),
+      name: symbol, // Dhan API doesn't provide company name in holdings
       quantity: quantity,
       avgPrice: avgPrice,
-      currentPrice: ltp,
+      currentPrice: currentPrice,
       source: 'dhan',
     );
+  }
+
+  // Helper method to parse double values safely
+  static double _parseDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is double) return value;
+    if (value is int) return value.toDouble();
+    if (value is String) {
+      return double.tryParse(value) ?? 0.0;
+    }
+    return 0.0;
   }
 
   factory HoldingModel.fromJson(Map<String, dynamic> json) {
@@ -51,9 +70,9 @@ class HoldingModel {
       id: json['id'],
       symbol: json['symbol'] ?? '',
       name: json['name'] ?? '',
-      quantity: json['quantity']?.toDouble() ?? 0.0,
-      avgPrice: json['avgPrice']?.toDouble() ?? 0.0,
-      currentPrice: json['currentPrice']?.toDouble() ?? 0.0,
+      quantity: _parseDouble(json['quantity']),
+      avgPrice: _parseDouble(json['avgPrice']),
+      currentPrice: _parseDouble(json['currentPrice']),
       source: json['source'] ?? 'manual',
       createdAt: DateTime.parse(json['createdAt'] ?? DateTime.now().toIso8601String()),
       updatedAt: DateTime.parse(json['updatedAt'] ?? DateTime.now().toIso8601String()),

@@ -1,27 +1,19 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ApiConfig {
-  static const String dhanBaseUrl = 'https://api.dhan.co';
+  static const String dhanBaseUrl = 'https://api.dhan.co/v2';
   static const String alphaVantageBaseUrl = 'https://www.alphavantage.co/query';
 
   // Secure storage instance
-  static const _secureStorage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-    ),
-    iOptions: IOSOptions(
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
+  static const _secureStorage = FlutterSecureStorage();
 
   // Keys for secure storage
-  static const String _dhanClientIdKey = 'client_id';
   static const String _dhanAccessTokenKey = 'dhan_access_token';
-  static const String _alphaVantageKeyKey = 'api_key';
+  static const String _alphaVantageKeyKey = 'alpha_vantage_api_key';
 
-  // Save API credentials securely
+  // For Dhan, we only need access token (client ID is embedded in the JWT token)
   static Future<void> saveDhanCredentials(String clientId, String accessToken) async {
-    await _secureStorage.write(key: _dhanClientIdKey, value: clientId);
+    // We only save the access token as that's all we need for API calls
     await _secureStorage.write(key: _dhanAccessTokenKey, value: accessToken);
   }
 
@@ -29,9 +21,10 @@ class ApiConfig {
     await _secureStorage.write(key: _alphaVantageKeyKey, value: apiKey);
   }
 
-  // Retrieve API credentials securely
+  // For backward compatibility, we'll still have getDhanClientId but it won't be used
   static Future<String?> getDhanClientId() async {
-    return await _secureStorage.read(key: _dhanClientIdKey);
+    // Client ID is not needed for API calls, it's embedded in the JWT token
+    return null;
   }
 
   static Future<String?> getDhanAccessToken() async {
@@ -44,10 +37,8 @@ class ApiConfig {
 
   // Check if credentials exist
   static Future<bool> hasDhanCredentials() async {
-    final clientId = await getDhanClientId();
     final accessToken = await getDhanAccessToken();
-    return clientId != null && accessToken != null &&
-        clientId.isNotEmpty && accessToken.isNotEmpty;
+    return accessToken != null && accessToken.isNotEmpty;
   }
 
   static Future<bool> hasAlphaVantageKey() async {
@@ -64,7 +55,6 @@ class ApiConfig {
 
   // Clear stored credentials
   static Future<void> clearDhanCredentials() async {
-    await _secureStorage.delete(key: _dhanClientIdKey);
     await _secureStorage.delete(key: _dhanAccessTokenKey);
   }
 
@@ -74,10 +64,5 @@ class ApiConfig {
 
   static Future<void> clearAllCredentials() async {
     await _secureStorage.deleteAll();
-  }
-
-  // Get all stored keys (for debugging - don't use in production)
-  static Future<Map<String, String>> getAllStoredKeys() async {
-    return await _secureStorage.readAll();
   }
 }
