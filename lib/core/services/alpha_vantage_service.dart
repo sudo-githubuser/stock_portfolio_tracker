@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import '../config/api_config.dart';
-import '../models/stock_model.dart';
+import '../models/stock_quote_model.dart';
 import 'network_service.dart';
 
 class AlphaVantageService {
@@ -10,164 +10,163 @@ class AlphaVantageService {
 
   final NetworkService _networkService = NetworkService();
 
-  Future<String> _getApiKey() async {
-    final apiKey = await ApiConfig.getAlphaVantageKey();
-    if (apiKey == null || apiKey.isEmpty) {
-      throw Exception('Alpha Vantage API key not found. Please configure it first.');
-    }
-    return apiKey;
+  Future<String?> _getApiKey() async {
+    return await ApiConfig.getAlphaVantageApiKey();
   }
 
-  Future<StockModel> fetchStockQuote(String symbol) async {
+  Future<StockQuoteModel> fetchStockQuote(String symbol) async {
     try {
       final apiKey = await _getApiKey();
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception('Alpha Vantage API key not found');
+      }
+
+      final symbolWithBSE = symbol.contains('.BSE') ? symbol : '$symbol.BSE';
+      print('Fetching quote for symbol: $symbolWithBSE');
+
       final response = await _networkService.get(
         ApiConfig.alphaVantageBaseUrl,
         queryParameters: {
           'function': 'GLOBAL_QUOTE',
-          'symbol': symbol,
+          'symbol': symbolWithBSE,
           'apikey': apiKey,
         },
       );
 
+      print('Alpha Vantage quote response: ${response.data}');
+
       if (response.statusCode == 200) {
         final data = response.data;
-        if (data is Map<String, dynamic>) {
-          if (data.containsKey('Error Message')) {
-            throw Exception('Invalid symbol: $symbol');
-          }
-          if (data.containsKey('Note')) {
-            throw Exception('API limit reached. Please try again later.');
-          }
-          return StockModel.fromAlphaVantageJson(data);
+        if (data is Map<String, dynamic> && data.containsKey('Global Quote')) {
+          final globalQuote = data['Global Quote'] as Map<String, dynamic>;
+
+          final priceString = globalQuote['05. price']?.toString() ?? '0.0';
+          final price = double.tryParse(priceString) ?? 0.0;
+
+          final changeString = globalQuote['09. change']?.toString() ?? '0.0';
+          final change = double.tryParse(changeString) ?? 0.0;
+
+          final changePercentString = globalQuote['10. change percent']?.toString() ?? '0.00%';
+          final changePercent = double.tryParse(changePercentString.replaceAll('%', '')) ?? 0.0;
+
+          print('Parsed price: $price for $symbolWithBSE');
+
+          return StockQuoteModel(
+            symbol: globalQuote['01. symbol']?.toString() ?? symbol,
+            currentPrice: price,
+            change: change,
+            changePercent: changePercent,
+            volume: double.tryParse(globalQuote['06. volume']?.toString() ?? '0') ?? 0,
+            lastTradingDay: globalQuote['07. latest trading day']?.toString() ?? '',
+          );
+        } else {
+          print('Invalid response format: $data');
+          throw Exception('Invalid response format from Alpha Vantage');
         }
+      } else {
+        throw Exception('Failed to fetch stock quote: ${response.statusCode}');
       }
-      throw Exception('Failed to fetch stock quote: ${response.statusCode}');
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
     } catch (e) {
-      throw Exception('Error fetching stock quote: $e');
+      print('Error fetching stock quote for $symbol: $e');
+      throw Exception('Failed to fetch stock quote: $e');
     }
   }
 
-  Future<List<StockModel>> fetchMultipleQuotes(List<String> symbols) async {
-    List<StockModel> stocks = [];
-
-    // Alpha Vantage free tier: 5 requests per minute
-    for (int i = 0; i < symbols.length; i++) {
-      try {
-        final stock = await fetchStockQuote(symbols[i]);
-        stocks.add(stock);
-
-        // Rate limiting: wait between requests
-        if (i < symbols.length - 1) {
-          await Future.delayed(Duration(seconds: 12)); // 5 requests per minute
-        }
-      } catch (e) {
-        print('Failed to fetch quote for ${symbols[i]}: $e');
-        // Continue with next symbol
-      }
-    }
-
-    return stocks;
-  }
-
-  Future<Map<String, dynamic>> fetchTimeSeriesDaily(String symbol, {String outputSize = 'compact'}) async {
+  Future<List<Map<String, dynamic>>> searchSymbols(String keywords) async {
     try {
       final apiKey = await _getApiKey();
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception('Alpha Vantage API key not found');
+      }
+
+      print('Searching for: $keywords');
+
       final response = await _networkService.get(
         ApiConfig.alphaVantageBaseUrl,
         queryParameters: {
-          'function': 'TIME_SERIES_DAILY',
-          'symbol': symbol,
-          'outputsize': outputSize,
+          'function': 'SYMBOL_SEARCH',
+          'keywords': keywords,
           'apikey': apiKey,
         },
       );
 
+      print('Alpha Vantage search response: ${response.data}');
+
       if (response.statusCode == 200) {
         final data = response.data;
-        if (data is Map<String, dynamic>) {
-          if (data.containsKey('Error Message')) {
-            throw Exception('Invalid symbol: $symbol');
-          }
-          if (data.containsKey('Note')) {
-            throw Exception('API limit reached. Please try again later.');
-          }
-          return data;
+        if (data is Map<String, dynamic> && data.containsKey('bestMatches')) {
+          final matches = data['bestMatches'] as List;
+          final bseMatches = matches.where((match) {
+            final symbol = match['1. symbol']?.toString() ?? '';
+            return symbol.contains('.BSE') || symbol.contains('BSE');
+          }).toList();
+
+          print('BSE matches found: ${bseMatches.length}');
+          return bseMatches.cast<Map<String, dynamic>>();
         }
       }
-      throw Exception('Failed to fetch time series data: ${response.statusCode}');
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
+      return [];
     } catch (e) {
-      throw Exception('Error fetching time series data: $e');
+      print('Search error: $e');
+      return [];
     }
   }
 
-  Future<Map<String, dynamic>> fetchCompanyOverview(String symbol) async {
+  Future<Map<String, dynamic>> getMarketStatus() async {
     try {
       final apiKey = await _getApiKey();
+      if (apiKey == null || apiKey.isEmpty) {
+        throw Exception('Alpha Vantage API key not found');
+      }
+
       final response = await _networkService.get(
         ApiConfig.alphaVantageBaseUrl,
         queryParameters: {
-          'function': 'OVERVIEW',
-          'symbol': symbol,
+          'function': 'MARKET_STATUS',
           'apikey': apiKey,
         },
       );
 
       if (response.statusCode == 200) {
-        final data = response.data;
-        if (data is Map<String, dynamic>) {
-          if (data.containsKey('Error Message')) {
-            throw Exception('Invalid symbol: $symbol');
-          }
-          return data;
-        }
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to fetch market status: ${response.statusCode}');
       }
-      throw Exception('Failed to fetch company overview: ${response.statusCode}');
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
     } catch (e) {
-      throw Exception('Error fetching company overview: $e');
+      throw Exception('Failed to fetch market status: $e');
     }
   }
 
-  Future<List<Map<String, dynamic>>> fetchIntradayData(String symbol, {String interval = '5min'}) async {
+  Future<bool> validateApiKey() async {
     try {
       final apiKey = await _getApiKey();
+      if (apiKey == null || apiKey.isEmpty) {
+        return false;
+      }
+
       final response = await _networkService.get(
         ApiConfig.alphaVantageBaseUrl,
         queryParameters: {
-          'function': 'TIME_SERIES_INTRADAY',
-          'symbol': symbol,
-          'interval': interval,
+          'function': 'GLOBAL_QUOTE',
+          'symbol': 'RELIANCE.BSE',
           'apikey': apiKey,
         },
       );
 
       if (response.statusCode == 200) {
         final data = response.data;
-        if (data is Map<String, dynamic>) {
-          final timeSeries = data['Time Series (${interval})'] as Map<String, dynamic>?;
-          if (timeSeries != null) {
-            return timeSeries.entries.map((entry) => {
-              'time': entry.key,
-              'open': double.parse(entry.value['1. open']),
-              'high': double.parse(entry.value['2. high']),
-              'low': double.parse(entry.value['3. low']),
-              'close': double.parse(entry.value['4. close']),
-              'volume': int.parse(entry.value['5. volume']),
-            }).toList();
-          }
+        if (data is Map<String, dynamic> && data.containsKey('Global Quote')) {
+          return true;
+        } else if (data is Map<String, dynamic> && data.containsKey('Error Message')) {
+          return false;
+        } else if (data is Map<String, dynamic> && data.containsKey('Note')) {
+          return true;
         }
       }
-      throw Exception('Failed to fetch intraday data: ${response.statusCode}');
-    } on DioException catch (e) {
-      throw Exception('Network error: ${e.message}');
+      return false;
     } catch (e) {
-      throw Exception('Error fetching intraday data: $e');
+      print('API key validation error: $e');
+      return false;
     }
   }
 }

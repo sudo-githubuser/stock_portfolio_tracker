@@ -46,6 +46,7 @@ dependencies:
   path: ^1.8.3                  # Path utilities
   crypto: ^3.0.3                # For data encryption
   intl: ^0.19.0                 # Date formatting
+  path_provider: ^2.1.1
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.

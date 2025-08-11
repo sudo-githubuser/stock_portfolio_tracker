@@ -1,10 +1,41 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/strings.dart';
 import '../../../api_keys/presentation/pages/api_keys_screen.dart';
+import '../../../profile/presentation/pages/profile_screen.dart';
 
-class SideMenu extends StatelessWidget {
+class SideMenu extends StatefulWidget {
+  @override
+  _SideMenuState createState() => _SideMenuState();
+}
+
+class _SideMenuState extends State<SideMenu> {
+  String _userName = 'User';
+  String _userAge = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserData();
+  }
+
+  void _loadUserData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final name = prefs.getString('user_name') ?? 'User';
+      final age = prefs.getString('user_age') ?? '';
+
+      setState(() {
+        _userName = name;
+        _userAge = age;
+      });
+    } catch (e) {
+      print('Error loading user data: $e');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
@@ -29,28 +60,35 @@ class SideMenu extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Profile picture
-                  Container(
-                    width: 60,
-                    height: 60,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(0.2),
-                      borderRadius: BorderRadius.circular(30),
-                      border: Border.all(color: Colors.white, width: 2),
-                    ),
-                    child: Icon(
-                      Icons.person,
-                      color: Colors.white,
-                      size: 30,
+                  GestureDetector(
+                    onTap: () {
+                      Navigator.pop(context);
+                      Get.to(() => ProfileScreen(),
+                          transition: Transition.cupertino);
+                    },
+                    child: Container(
+                      width: 70,
+                      height: 70,
+                      decoration: BoxDecoration(
+                        color: Colors.white.withOpacity(0.2),
+                        borderRadius: BorderRadius.circular(35),
+                        border: Border.all(color: Colors.white, width: 3),
+                      ),
+                      child: Icon(
+                        Icons.person,
+                        color: Colors.white,
+                        size: 35,
+                      ),
                     ),
                   ),
 
                   SizedBox(height: 16),
 
-                  // User name
+                  // User name and age
                   Text(
-                    'John Doe',
+                    _userName,
                     style: TextStyle(
-                      fontSize: 20,
+                      fontSize: 22,
                       fontWeight: FontWeight.w600,
                       color: Colors.white,
                       letterSpacing: 0.2,
@@ -59,15 +97,32 @@ class SideMenu extends StatelessWidget {
 
                   SizedBox(height: 4),
 
-                  // User email
-                  Text(
-                    'john.doe@example.com',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w400,
-                      color: Colors.white.withOpacity(0.8),
+                  if (_userAge.isNotEmpty)
+                    Text(
+                      'Age: $_userAge',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                        color: Colors.white.withOpacity(0.8),
+                      ),
+                    )
+                  else
+                    GestureDetector(
+                      onTap: () {
+                        Navigator.pop(context);
+                        Get.to(() => ProfileScreen(),
+                            transition: Transition.cupertino);
+                      },
+                      child: Text(
+                        'Complete your profile',
+                        style: TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w400,
+                          color: Colors.white.withOpacity(0.8),
+                          decoration: TextDecoration.underline,
+                        ),
+                      ),
                     ),
-                  ),
                 ],
               ),
             ),
@@ -80,14 +135,16 @@ class SideMenu extends StatelessWidget {
                   children: [
                     _buildMenuItem(
                       icon: Icons.person_outline,
-                      title: AppStrings.profile,
+                      title: 'Profile',
                       onTap: () {
                         Navigator.pop(context);
-                        // Navigate to profile
+                        Get.to(() => ProfileScreen(),
+                            transition: Transition.cupertino)?.then((_) {
+                          _loadUserData(); // Refresh user data when returning
+                        });
                       },
                     ),
 
-                    // NEW: API Keys section
                     _buildMenuItem(
                       icon: Icons.vpn_key_outlined,
                       title: 'API Keys',
@@ -127,6 +184,7 @@ class SideMenu extends StatelessWidget {
                       onTap: () {
                         Navigator.pop(context);
                         // Show about dialog
+                        _showAboutDialog();
                       },
                     ),
 
@@ -203,6 +261,38 @@ class SideMenu extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  void _showAboutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('About Portfolio Tracker'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Version 1.0.0'),
+            SizedBox(height: 8),
+            Text('A comprehensive portfolio tracking app with Dhan integration and Alpha Vantage price feeds.'),
+            SizedBox(height: 16),
+            Text('Features:', style: TextStyle(fontWeight: FontWeight.w600)),
+            SizedBox(height: 8),
+            Text('• Live stock prices'),
+            Text('• Dhan holdings sync'),
+            Text('• Manual stock addition'),
+            Text('• Portfolio analytics'),
+            Text('• Secure API key storage'),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text('OK'),
+          ),
+        ],
       ),
     );
   }

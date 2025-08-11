@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/constants/colors.dart';
@@ -11,135 +9,161 @@ class ApiKeysScreen extends StatefulWidget {
 }
 
 class _ApiKeysScreenState extends State<ApiKeysScreen> {
-  final TextEditingController _alphaVantageController = TextEditingController();
-  final TextEditingController _dhanClientIdController = TextEditingController();
   final TextEditingController _dhanAccessTokenController = TextEditingController();
+  final TextEditingController _alphaVantageKeyController = TextEditingController();
 
-  bool _obscureAlphaVantage = true;
-  bool _obscureDhanClientId = true;
-  bool _obscureDhanAccessToken = true;
+  bool _isDhanTokenVisible = false;
+  bool _isAlphaKeyVisible = false;
+  bool _isLoading = false;
 
-  bool _isSubmitting = false;
+  bool _hasDhanCredentials = false;
+  bool _hasAlphaVantageKey = false;
 
   @override
   void initState() {
     super.initState();
-    _loadExistingKeys();
+    _checkExistingCredentials();
   }
 
-  void _loadExistingKeys() async {
-    final alphaKey = await ApiConfig.getAlphaVantageKey();
-    final dhanClientId = await ApiConfig.getDhanClientId();
-    final dhanAccessToken = await ApiConfig.getDhanAccessToken();
+  Future<void> _checkExistingCredentials() async {
+    final hasDhan = await ApiConfig.hasDhanCredentials();
+    final hasAlpha = await ApiConfig.hasAlphaVantageKey();
 
     setState(() {
-      _alphaVantageController.text = alphaKey ?? '';
-      _dhanClientIdController.text = dhanClientId ?? '';
-      _dhanAccessTokenController.text = dhanAccessToken ?? '';
+      _hasDhanCredentials = hasDhan;
+      _hasAlphaVantageKey = hasAlpha;
     });
   }
 
-  void _submitKeys() async {
-    if (_isSubmitting) return;
-
-    setState(() => _isSubmitting = true);
-
-    bool hasAlphaVantage = _alphaVantageController.text.trim().isNotEmpty;
-    bool hasDhanClientId = _dhanClientIdController.text.trim().isNotEmpty;
-    bool hasDhanAccessToken = _dhanAccessTokenController.text.trim().isNotEmpty;
-
-    // Validate Dhan credentials (both or none)
-    if ((hasDhanClientId && !hasDhanAccessToken) || (!hasDhanClientId && hasDhanAccessToken)) {
-      setState(() => _isSubmitting = false);
+  Future<void> _saveDhanCredentials() async {
+    if (_dhanAccessTokenController.text.trim().isEmpty) {
       Get.snackbar(
         'Error',
-        'Please provide both Dhan Client ID and Access Token, or leave both empty',
+        'Please enter Dhan Access Token',
         backgroundColor: Colors.red.withOpacity(0.1),
         colorText: Colors.red,
       );
       return;
     }
 
-    // Check if at least one set of credentials is provided
-    bool hasAnyCredentials = hasAlphaVantage || (hasDhanClientId && hasDhanAccessToken);
-    if (!hasAnyCredentials) {
-      setState(() => _isSubmitting = false);
-      Get.snackbar(
-        'Error',
-        'Please provide at least one set of API credentials',
-        backgroundColor: Colors.red.withOpacity(0.1),
-        colorText: Colors.red,
-      );
-      return;
-    }
+    setState(() => _isLoading = true);
 
     try {
-      // Save Alpha Vantage key
-      if (hasAlphaVantage) {
-        await ApiConfig.saveAlphaVantageKey(_alphaVantageController.text.trim());
-      }
+      await ApiConfig.saveDhanCredentials(
+        '', // Client ID not needed
+        _dhanAccessTokenController.text.trim(),
+      );
 
-      // Save Dhan credentials
-      if (hasDhanClientId && hasDhanAccessToken) {
-        await ApiConfig.saveDhanCredentials(
-          _dhanClientIdController.text.trim(),
-          _dhanAccessTokenController.text.trim(),
-        );
-      }
+      setState(() {
+        _hasDhanCredentials = true;
+        _isLoading = false;
+      });
 
-      setState(() => _isSubmitting = false);
+      _dhanAccessTokenController.clear();
 
-      // Show success message
-      _showSuccessDialog(hasAlphaVantage, hasDhanClientId && hasDhanAccessToken);
+      Get.snackbar(
+        'Success',
+        'Dhan access token saved successfully!',
+        backgroundColor: Colors.green.withOpacity(0.1),
+        colorText: Colors.green,
+      );
     } catch (e) {
-      setState(() => _isSubmitting = false);
+      setState(() => _isLoading = false);
       Get.snackbar(
         'Error',
-        'Failed to save API keys: $e',
+        'Failed to save Dhan access token: $e',
         backgroundColor: Colors.red.withOpacity(0.1),
         colorText: Colors.red,
       );
     }
   }
 
-  void _showSuccessDialog(bool hasAlphaVantage, bool hasDhan) {
-    String message = '';
-
-    if (hasAlphaVantage && hasDhan) {
-      message = 'Thank you for providing your Alphavantage and Dhan API Keys. You can now add stocks manually and fetch your holdings from Dhan.';
-    } else if (hasAlphaVantage) {
-      message = 'Thank you for providing your Alphavantage API Key, you can now add stock manually.';
-    } else if (hasDhan) {
-      message = 'Thank you for providing your Dhan API Keys. You can now fetch your holdings from Dhan.';
+  Future<void> _saveAlphaVantageKey() async {
+    if (_alphaVantageKeyController.text.trim().isEmpty) {
+      Get.snackbar(
+        'Error',
+        'Please enter Alpha Vantage API key',
+        backgroundColor: Colors.red.withOpacity(0.1),
+        colorText: Colors.red,
+      );
+      return;
     }
 
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: Text('API Keys Saved'),
-        content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.of(context).pop();
-              Get.back(); // Go back to previous screen
-            },
-            child: Text(
-              'OK',
-              style: TextStyle(color: AppColors.iosBlue),
-            ),
-          ),
-        ],
-      ),
-    );
+    setState(() => _isLoading = true);
+
+    try {
+      await ApiConfig.saveAlphaVantageKey(_alphaVantageKeyController.text.trim());
+
+      setState(() {
+        _hasAlphaVantageKey = true;
+        _isLoading = false;
+      });
+
+      _alphaVantageKeyController.clear();
+
+      Get.snackbar(
+        'Success',
+        'Alpha Vantage API key saved successfully!',
+        backgroundColor: Colors.green.withOpacity(0.1),
+        colorText: Colors.green,
+      );
+    } catch (e) {
+      setState(() => _isLoading = false);
+      Get.snackbar(
+        'Error',
+        'Failed to save Alpha Vantage key: $e',
+        backgroundColor: Colors.red.withOpacity(0.1),
+        colorText: Colors.red,
+      );
+    }
+  }
+
+  Future<void> _clearDhanCredentials() async {
+    try {
+      await ApiConfig.clearDhanCredentials();
+      setState(() => _hasDhanCredentials = false);
+
+      Get.snackbar(
+        'Success',
+        'Dhan credentials cleared successfully!',
+        backgroundColor: Colors.green.withOpacity(0.1),
+        colorText: Colors.green,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to clear Dhan credentials: $e',
+        backgroundColor: Colors.red.withOpacity(0.1),
+        colorText: Colors.red,
+      );
+    }
+  }
+
+  Future<void> _clearAlphaVantageKey() async {
+    try {
+      await ApiConfig.clearAlphaVantageKey();
+      setState(() => _hasAlphaVantageKey = false);
+
+      Get.snackbar(
+        'Success',
+        'Alpha Vantage key cleared successfully!',
+        backgroundColor: Colors.green.withOpacity(0.1),
+        colorText: Colors.green,
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to clear Alpha Vantage key: $e',
+        backgroundColor: Colors.red.withOpacity(0.1),
+        colorText: Colors.red,
+      );
+    }
   }
 
   @override
   void dispose() {
-    _alphaVantageController.dispose();
-    _dhanClientIdController.dispose();
     _dhanAccessTokenController.dispose();
+    _alphaVantageKeyController.dispose();
     super.dispose();
   }
 
@@ -162,43 +186,49 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Info section
             Container(
               padding: EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.iosBlue.withOpacity(0.1),
+                gradient: LinearGradient(
+                  colors: [Colors.blue.withOpacity(0.1), Colors.purple.withOpacity(0.1)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: Row(
                 children: [
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.info_outline,
-                        color: AppColors.iosBlue,
-                        size: 20,
-                      ),
-                      SizedBox(width: 8),
-                      Text(
-                        'Why do we need API keys?',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.iosBlue,
-                        ),
-                      ),
-                    ],
+                  Container(
+                    width: 50,
+                    height: 50,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(colors: [Colors.blue, Colors.purple]),
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    child: Icon(Icons.key, color: Colors.white, size: 24),
                   ),
-                  SizedBox(height: 12),
-                  Text(
-                    '• For manual stock addition please provide your Alphavantage API key\n\n'
-                        '• If you have Dhan account and want to fetch your holdings from Dhan then please provide Dhan access token and client ID\n\n'
-                        '• You can provide both or either any one of them based on your needs',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: AppColors.iosBlue,
-                      height: 1.5,
+                  SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'API Configuration',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.iosText,
+                          ),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          'Configure your API keys to enable portfolio sync and real-time data',
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: AppColors.iosSecondaryText,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -207,222 +237,525 @@ class _ApiKeysScreenState extends State<ApiKeysScreen> {
 
             SizedBox(height: 24),
 
-            // Alpha Vantage API Key
-            Text(
-              'Alpha Vantage API Key',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.iosText,
-              ),
-            ),
-            SizedBox(height: 8),
-            _buildPasswordField(
-              controller: _alphaVantageController,
-              hint: 'Enter your Alpha Vantage API key',
-              obscureText: _obscureAlphaVantage,
-              onToggleVisibility: () {
-                setState(() {
-                  _obscureAlphaVantage = !_obscureAlphaVantage;
-                });
-              },
-            ),
+            _buildDhanSection(),
 
-            SizedBox(height: 20),
+            SizedBox(height: 24),
 
-            // Dhan Credentials Section
-            Text(
-              'Dhan API Credentials',
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: AppColors.iosText,
-              ),
-            ),
-            SizedBox(height: 8),
-
-            // Dhan Client ID
-            Text(
-              'Client ID',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.iosSecondaryText,
-              ),
-            ),
-            SizedBox(height: 4),
-            _buildPasswordField(
-              controller: _dhanClientIdController,
-              hint: 'Enter your Dhan Client ID',
-              obscureText: _obscureDhanClientId,
-              onToggleVisibility: () {
-                setState(() {
-                  _obscureDhanClientId = !_obscureDhanClientId;
-                });
-              },
-            ),
-
-            SizedBox(height: 12),
-
-            // Dhan Access Token
-            Text(
-              'Access Token',
-              style: TextStyle(
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-                color: AppColors.iosSecondaryText,
-              ),
-            ),
-            SizedBox(height: 4),
-            _buildPasswordField(
-              controller: _dhanAccessTokenController,
-              hint: 'Enter your Dhan Access Token',
-              obscureText: _obscureDhanAccessToken,
-              onToggleVisibility: () {
-                setState(() {
-                  _obscureDhanAccessToken = !_obscureDhanAccessToken;
-                });
-              },
-            ),
+            _buildAlphaVantageSection(),
 
             SizedBox(height: 32),
 
-            // Submit button
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: _isSubmitting ? null : _submitKeys,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.iosBlue,
-                  foregroundColor: Colors.white,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                child: _isSubmitting
-                    ? Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    ),
-                    SizedBox(width: 12),
-                    Text('Saving...'),
-                  ],
-                )
-                    : Text(
-                  'Save API Keys',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
+            _buildSetupGuideSection(),
+
+            SizedBox(height: 24),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildPasswordField({
-    required TextEditingController controller,
-    required String hint,
-    required bool obscureText,
-    required VoidCallback onToggleVisibility,
-  }) {
-    return TextField(
-      controller: controller,
-      obscureText: obscureText,
-      decoration: InputDecoration(
-        hintText: hint,
-        suffixIcon: IconButton(
-          icon: Icon(
-            obscureText ? Icons.visibility_off : Icons.visibility,
-            color: AppColors.iosGray,
+  Widget _buildDhanSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: Offset(0, 2),
           ),
-          onPressed: onToggleVisibility,
-        ),
-        filled: true,
-        fillColor: Colors.white,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.iosSeparator),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.iosSeparator),
-        ),
-        focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(color: AppColors.iosBlue, width: 2),
-        ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.green.withOpacity(0.1), Colors.teal.withOpacity(0.1)],
+              ),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [Colors.green, Colors.teal]),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(Icons.account_balance, color: Colors.white, size: 20),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Dhan API',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.iosText,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _hasDhanCredentials ? Colors.green : Colors.grey,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              _hasDhanCredentials ? 'Connected' : 'Not Set',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'For fetching your holdings automatically',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.iosSecondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_hasDhanCredentials)
+                  IconButton(
+                    onPressed: _clearDhanCredentials,
+                    icon: Icon(Icons.delete, color: Colors.red, size: 20),
+                  ),
+              ],
+            ),
+          ),
+
+          if (!_hasDhanCredentials) ...[
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  _buildTextField(
+                    controller: _dhanAccessTokenController,
+                    label: 'Access Token',
+                    hint: 'Enter your Dhan Access Token',
+                    icon: Icons.vpn_key,
+                    isPassword: true,
+                    isVisible: _isDhanTokenVisible,
+                    onVisibilityToggle: () {
+                      setState(() => _isDhanTokenVisible = !_isDhanTokenVisible);
+                    },
+                  ),
+
+                  SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveDhanCredentials,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                          : Text(
+                        'Save Dhan Access Token',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Dhan access token is configured and ready to use!',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  // Debug code, need to remove
-  void _debugShowSavedKeys() async {
-    final clientId = await ApiConfig.getDhanClientId();
-    final accessToken = await ApiConfig.getDhanAccessToken();
+  Widget _buildAlphaVantageSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.orange.withOpacity(0.1), Colors.red.withOpacity(0.1)],
+              ),
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(16),
+                topRight: Radius.circular(16),
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [Colors.orange, Colors.red]),
+                    borderRadius: BorderRadius.circular(20),
+                  ),
+                  child: Icon(Icons.trending_up, color: Colors.white, size: 20),
+                ),
+                SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Text(
+                            'Alpha Vantage API',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.iosText,
+                            ),
+                          ),
+                          SizedBox(width: 8),
+                          Container(
+                            padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: _hasAlphaVantageKey ? Colors.green : Colors.grey,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: Text(
+                              _hasAlphaVantageKey ? 'Connected' : 'Not Set',
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.white,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      Text(
+                        'For real-time stock prices and market data',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: AppColors.iosSecondaryText,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (_hasAlphaVantageKey)
+                  IconButton(
+                    onPressed: _clearAlphaVantageKey,
+                    icon: Icon(Icons.delete, color: Colors.red, size: 20),
+                  ),
+              ],
+            ),
+          ),
 
-    print('Saved Client ID: $clientId');
-    print('Saved Access Token: ${accessToken?.substring(0, 10)}...');
+          if (!_hasAlphaVantageKey) ...[
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Column(
+                children: [
+                  _buildTextField(
+                    controller: _alphaVantageKeyController,
+                    label: 'API Key',
+                    hint: 'Enter your Alpha Vantage API key',
+                    icon: Icons.key,
+                    isPassword: true,
+                    isVisible: _isAlphaKeyVisible,
+                    onVisibilityToggle: () {
+                      setState(() => _isAlphaKeyVisible = !_isAlphaKeyVisible);
+                    },
+                  ),
 
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Debug: Saved Keys'),
-        content: Text(
-            'Client ID: ${clientId ?? 'Not set'}\n'
-                'Access Token: ${accessToken != null ? '${accessToken.substring(0, 10)}...' : 'Not set'}'
+                  SizedBox(height: 20),
+
+                  SizedBox(
+                    width: double.infinity,
+                    height: 48,
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _saveAlphaVantageKey,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.orange,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 0,
+                      ),
+                      child: _isLoading
+                          ? SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: Colors.white,
+                        ),
+                      )
+                          : Text(
+                        'Save Alpha Vantage Key',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ] else ...[
+            Padding(
+              padding: EdgeInsets.all(16),
+              child: Container(
+                padding: EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: Colors.green.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: [
+                    Icon(Icons.check_circle, color: Colors.green, size: 20),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'Alpha Vantage API key is configured and ready to use!',
+                        style: TextStyle(
+                          color: Colors.green[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSetupGuideSection() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.04),
+            blurRadius: 8,
+            offset: Offset(0, 2),
+          ),
+        ],
+      ),
+      child: ExpansionTile(
+        leading: Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            gradient: LinearGradient(colors: [Colors.blue, Colors.purple]),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Icon(Icons.help_outline, color: Colors.white, size: 20),
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
+        title: Text(
+          'Setup Guide',
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: FontWeight.w600,
+            color: AppColors.iosText,
+          ),
+        ),
+        subtitle: Text(
+          'How to get your API keys',
+          style: TextStyle(
+            fontSize: 12,
+            color: AppColors.iosSecondaryText,
+          ),
+        ),
+        children: [
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Dhan API Setup:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.iosText,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '1. Login to your Dhan account\n2. Go to API section in settings\n3. Generate API access token\n4. Copy the access token (Client ID not needed)',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.iosSecondaryText,
+                  ),
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'Alpha Vantage Setup:',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.iosText,
+                  ),
+                ),
+                SizedBox(height: 8),
+                Text(
+                  '1. Visit alphavantage.co\n2. Sign up for free account\n3. Get your free API key\n4. Copy and paste the key here',
+                  style: TextStyle(
+                    fontSize: 12,
+                    color: AppColors.iosSecondaryText,
+                  ),
+                ),
+              ],
+            ),
           ),
         ],
       ),
     );
   }
-// Add this method to your API Keys screen
-  void _debugToken() async {
-    final token = await ApiConfig.getDhanAccessToken();
-    if (token == null) {
-      print('No token found');
-      return;
-    }
 
-    // Basic JWT parsing (just for debugging - don't use in production)
-    try {
-      final parts = token.split('.');
-      if (parts.length == 3) {
-        final payload = parts[1];
-        // Add padding if needed
-        String normalizedPayload = payload;
-        switch (payload.length % 4) {
-          case 2:
-            normalizedPayload += '==';
-            break;
-          case 3:
-            normalizedPayload += '=';
-            break;
-        }
-
-        final decoded = utf8.decode(base64Decode(normalizedPayload));
-        print('Token payload: $decoded');
-      }
-    } catch (e) {
-      print('Could not decode token: $e');
-    }
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required String hint,
+    required IconData icon,
+    bool isPassword = false,
+    bool isVisible = false,
+    VoidCallback? onVisibilityToggle,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: AppColors.iosText,
+          ),
+        ),
+        SizedBox(height: 8),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.02),
+                blurRadius: 4,
+                offset: Offset(0, 1),
+              ),
+            ],
+          ),
+          child: TextField(
+            controller: controller,
+            obscureText: isPassword && !isVisible,
+            decoration: InputDecoration(
+              hintText: hint,
+              prefixIcon: Icon(icon, size: 20, color: AppColors.iosGray),
+              suffixIcon: isPassword
+                  ? IconButton(
+                icon: Icon(
+                  isVisible ? Icons.visibility : Icons.visibility_off,
+                  size: 20,
+                  color: AppColors.iosGray,
+                ),
+                onPressed: onVisibilityToggle,
+              )
+                  : null,
+              filled: true,
+              fillColor: Colors.white,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.iosSeparator),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.iosSeparator),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide: BorderSide(color: AppColors.iosBlue, width: 2),
+              ),
+              contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+            ),
+          ),
+        ),
+      ],
+    );
   }
-
 }

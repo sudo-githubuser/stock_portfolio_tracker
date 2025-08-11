@@ -1,8 +1,8 @@
-import '../database/database_helper.dart';
+import 'package:dio/dio.dart';
 import '../models/holding_model.dart';
-import '../models/stock_model.dart';
-import 'dhan_service.dart';
-import 'alpha_vantage_service.dart';
+import '../database/database_helper.dart';
+import '../config/api_config.dart';
+import 'network_service.dart';
 
 class PortfolioService {
   static final PortfolioService _instance = PortfolioService._internal();
@@ -10,96 +10,8 @@ class PortfolioService {
   PortfolioService._internal();
 
   final DatabaseHelper _dbHelper = DatabaseHelper();
-  final DhanService _dhanService = DhanService();
-  final AlphaVantageService _alphaVantageService = AlphaVantageService();
+  final NetworkService _networkService = NetworkService();
 
-  // Sync holdings from Dhan
-  Future<List<HoldingModel>> syncDhanHoldings() async {
-    try {
-      final dhanHoldings = await _dhanService.fetchHoldings();
-
-      // Clear existing Dhan holdings
-      final existingHoldings = await _dbHelper.getAllHoldings();
-      for (final holding in existingHoldings) {
-        if (holding.source == 'dhan') {
-          await _dbHelper.deleteHolding(holding.id!);
-        }
-      }
-
-      // Insert new Dhan holdings
-      for (final holding in dhanHoldings) {
-        await _dbHelper.insertHolding(holding);
-      }
-
-      // Update prices for all holdings
-      await updateAllPrices();
-
-      return await _dbHelper.getAllHoldings();
-    } catch (e) {
-      throw Exception('Failed to sync Dhan holdings: $e');
-    }
-  }
-
-  // Add manual holding
-  Future<HoldingModel> addManualHolding({
-    required String symbol,
-    required String name,
-    required double quantity,
-    required double avgPrice,
-  }) async {
-    try {
-      // Check if holding already exists
-      final existingHolding = await _dbHelper.getHoldingBySymbol(symbol);
-      if (existingHolding != null) {
-        throw Exception('Stock $symbol already exists in portfolio');
-      }
-
-      // Get current price from Alpha Vantage
-      double currentPrice = avgPrice; // Default to avg price
-      try {
-        final stockData = await _alphaVantageService.fetchStockQuote(symbol);
-        currentPrice = stockData.currentPrice;
-        await _dbHelper.insertOrUpdateStockPrice(stockData);
-      } catch (e) {
-        print('Could not fetch current price for $symbol: $e');
-      }
-
-      final holding = HoldingModel(
-        symbol: symbol.toUpperCase(),
-        name: name,
-        quantity: quantity,
-        avgPrice: avgPrice,
-        currentPrice: currentPrice,
-        source: 'manual',
-      );
-
-      final id = await _dbHelper.insertHolding(holding);
-      return holding.copyWith(id: id);
-    } catch (e) {
-      throw Exception('Failed to add manual holding: $e');
-    }
-  }
-
-  // Update holding
-  Future<HoldingModel> updateHolding(HoldingModel holding) async {
-    try {
-      await _dbHelper.updateHolding(holding);
-      return holding;
-    } catch (e) {
-      throw Exception('Failed to update holding: $e');
-    }
-  }
-
-  // Delete holding
-  Future<void> deleteHolding(int id) async {
-    try {
-      await _dbHelper.deleteHolding(id);
-    } catch (e) {
-      throw Exception('Failed to delete holding: $e');
-    }
-  }
-
-  // Get all holdings
   Future<List<HoldingModel>> getAllHoldings() async {
     try {
       return await _dbHelper.getAllHoldings();
@@ -108,47 +20,155 @@ class PortfolioService {
     }
   }
 
-  // Update prices for all holdings
-  Future<void> updateAllPrices() async {
+  Future<List<HoldingModel>> getHoldingsBySource(String source) async {
     try {
-      final holdings = await _dbHelper.getAllHoldings();
-      final symbols = holdings.map((h) => h.symbol).toSet().toList();
-
-      // Fetch updated prices (rate limited)
-      for (final symbol in symbols) {
-        try {
-          final stockData = await _alphaVantageService.fetchStockQuote(symbol);
-          await _dbHelper.insertOrUpdateStockPrice(stockData);
-
-          // Update holdings with new price
-          final holdingsToUpdate = holdings.where((h) => h.symbol == symbol);
-          for (final holding in holdingsToUpdate) {
-            final updatedHolding = holding.copyWith(
-              currentPrice: stockData.currentPrice,
-              updatedAt: DateTime.now(),
-            );
-            await _dbHelper.updateHolding(updatedHolding);
-          }
-
-          // Rate limiting
-          await Future.delayed(Duration(seconds: 12));
-        } catch (e) {
-          print('Failed to update price for $symbol: $e');
-        }
-      }
+      return await _dbHelper.getHoldingsBySource(source);
     } catch (e) {
-      throw Exception('Failed to update prices: $e');
+      throw Exception('Failed to get holdings by source: $e');
     }
   }
 
-  // Get portfolio summary
+  Future<void> addManualHolding({
+    required String symbol,
+    required String name,
+    required double quantity,
+    required double avgPrice,
+  }) async {
+    try {
+      final existingHolding = await _dbHelper.getHoldingBySymbol(symbol, 'manual');
+
+      if (existingHolding != null) {
+        final totalQuantity = existingHolding.quantity + quantity;
+        final totalInvested = existingHolding.investedAmount + (quantity * avgPrice);
+        final newAvgPrice = totalInvested / totalQuantity;
+
+        final updatedHolding = existingHolding.copyWith(
+          quantity: totalQuantity,
+          avgPrice: newAvgPrice,
+          updatedAt: DateTime.now(),
+        );
+
+        await _dbHelper.updateHolding(updatedHolding);
+      } else {
+        final holding = HoldingModel(
+          symbol: symbol.toUpperCase(),
+          name: name,
+          quantity: quantity,
+          avgPrice: avgPrice,
+          currentPrice: avgPrice,
+          source: 'manual',
+          isMTF: false,
+        );
+
+        await _dbHelper.insertHolding(holding);
+      }
+    } catch (e) {
+      throw Exception('Failed to add manual holding: $e');
+    }
+  }
+
+  Future<void> syncDhanHoldings() async {
+    try {
+      final accessToken = await ApiConfig.getDhanAccessToken();
+      if (accessToken == null || accessToken.isEmpty) {
+        throw Exception('Dhan access token not found');
+      }
+
+      final dio = Dio();
+      final response = await dio.get(
+        'https://api.dhan.co/holdings',
+        options: Options(
+          headers: {
+            'access-token': accessToken,
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        final data = response.data;
+        List<dynamic> holdingsData = [];
+
+        if (data is Map<String, dynamic>) {
+          if (data.containsKey('data') && data['data'] is List) {
+            holdingsData = data['data'] as List<dynamic>;
+          } else if (data.containsKey('holdings') && data['holdings'] is List) {
+            holdingsData = data['holdings'] as List<dynamic>;
+          } else if (data.containsKey('positions') && data['positions'] is List) {
+            holdingsData = data['positions'] as List<dynamic>;
+          }
+        } else if (data is List) {
+          holdingsData = data as List<dynamic>;
+        }
+
+        if (holdingsData.isEmpty) {
+          print('No holdings data found in response: $data');
+          return;
+        }
+
+        await _dbHelper.deleteAllHoldingsBySource('dhan');
+
+        for (var holdingJson in holdingsData) {
+          try {
+            if (holdingJson is Map<String, dynamic>) {
+              final holding = HoldingModel.fromDhanJson(holdingJson);
+              await _dbHelper.insertHolding(holding);
+            }
+          } catch (e) {
+            print('Failed to process holding: $holdingJson, error: $e');
+          }
+        }
+      } else {
+        throw Exception('Failed to fetch Dhan holdings: ${response.statusCode}');
+      }
+    } catch (e) {
+      if (e is DioException) {
+        if (e.response?.statusCode == 401) {
+          throw Exception('Invalid Dhan access token. Please update your credentials.');
+        } else if (e.response?.statusCode == 403) {
+          throw Exception('Access forbidden. Please check your Dhan API permissions.');
+        } else if (e.response?.statusCode == 404) {
+          throw Exception('Dhan API endpoint not found. Please check the API URL.');
+        }
+      }
+      throw Exception('Failed to sync Dhan holdings: $e');
+    }
+  }
+
+  Future<void> updateHoldingPrice(int holdingId, double newPrice) async {
+    try {
+      await _dbHelper.updateHoldingPrice(holdingId, newPrice);
+    } catch (e) {
+      throw Exception('Failed to update holding price: $e');
+    }
+  }
+
+  Future<void> updateAllPrices() async {
+    final holdings = await getAllHoldings();
+    for (final holding in holdings) {
+      try {
+        await Future.delayed(Duration(seconds: 1));
+      } catch (e) {
+        print('Failed to update price for ${holding.symbol}: $e');
+      }
+    }
+  }
+
+  Future<void> deleteHolding(int holdingId) async {
+    try {
+      await _dbHelper.deleteHolding(holdingId);
+    } catch (e) {
+      throw Exception('Failed to delete holding: $e');
+    }
+  }
+
   Future<Map<String, dynamic>> getPortfolioSummary() async {
     try {
-      final holdings = await _dbHelper.getAllHoldings();
+      final holdings = await getAllHoldings();
 
-      double totalInvested = 0;
-      double totalCurrent = 0;
-      double totalPnL = 0;
+      double totalInvested = 0.0;
+      double totalCurrent = 0.0;
+      double totalPnL = 0.0;
 
       for (final holding in holdings) {
         totalInvested += holding.investedAmount;
@@ -156,63 +176,129 @@ class PortfolioService {
         totalPnL += holding.pnl;
       }
 
-      final totalPnLPercent = totalInvested > 0 ? (totalPnL / totalInvested * 100) : 0;
+      final totalPnLPercent = totalInvested > 0 ? (totalPnL / totalInvested) * 100 : 0.0;
 
       return {
         'totalInvested': totalInvested,
         'totalCurrent': totalCurrent,
         'totalPnL': totalPnL,
         'totalPnLPercent': totalPnLPercent,
-        'holdingsCount': holdings.length,
-        'lastUpdated': DateTime.now(),
+        'totalHoldings': holdings.length,
+        'profitableHoldings': holdings.where((h) => h.pnl > 0).length,
+        'lossMakingHoldings': holdings.where((h) => h.pnl < 0).length,
       };
     } catch (e) {
       throw Exception('Failed to get portfolio summary: $e');
     }
   }
 
-  // Get stock price from cache or API
-  Future<StockModel?> getStockPrice(String symbol) async {
+  Future<List<HoldingModel>> getTopPerformers({int limit = 5}) async {
     try {
-      // Try cache first
-      final cachedStock = await _dbHelper.getStockPriceBySymbol(symbol);
-      if (cachedStock != null) {
-        // Check if data is recent (within 5 minutes)
-        final diff = DateTime.now().difference(cachedStock.lastUpdated);
-        if (diff.inMinutes < 5) {
-          return cachedStock;
-        }
-      }
-
-      // Fetch fresh data
-      final stockData = await _alphaVantageService.fetchStockQuote(symbol);
-      await _dbHelper.insertOrUpdateStockPrice(stockData);
-      return stockData;
+      final holdings = await getAllHoldings();
+      holdings.sort((a, b) => b.pnlPercent.compareTo(a.pnlPercent));
+      return holdings.take(limit).toList();
     } catch (e) {
-      // Return cached data if available, even if old
-      return await _dbHelper.getStockPriceBySymbol(symbol);
+      throw Exception('Failed to get top performers: $e');
     }
   }
 
-  // Record transaction
-  Future<void> recordTransaction({
-    required String symbol,
-    required String type, // 'buy' or 'sell'
-    required double quantity,
-    required double price,
-    required DateTime date,
+  Future<List<HoldingModel>> getWorstPerformers({int limit = 5}) async {
+    try {
+      final holdings = await getAllHoldings();
+      holdings.sort((a, b) => a.pnlPercent.compareTo(b.pnlPercent));
+      return holdings.take(limit).toList();
+    } catch (e) {
+      throw Exception('Failed to get worst performers: $e');
+    }
+  }
+
+  Future<void> refreshHoldingPrice(String symbol) async {
+    try {
+      final holdings = await getAllHoldings();
+      final holding = holdings.firstWhere(
+            (h) => h.symbol == symbol,
+        orElse: () => throw Exception('Holding not found'),
+      );
+
+      await Future.delayed(Duration(seconds: 1));
+    } catch (e) {
+      throw Exception('Failed to refresh price for $symbol: $e');
+    }
+  }
+
+  Future<bool> hasHoldings() async {
+    try {
+      final holdings = await getAllHoldings();
+      return holdings.isNotEmpty;
+    } catch (e) {
+      return false;
+    }
+  }
+
+  Future<Map<String, double>> getSourceWiseInvestment() async {
+    try {
+      final holdings = await getAllHoldings();
+      Map<String, double> sourceWiseInvestment = {
+        'dhan': 0.0,
+        'manual': 0.0,
+      };
+
+      for (final holding in holdings) {
+        sourceWiseInvestment[holding.source] = (sourceWiseInvestment[holding.source] ?? 0.0) + holding.investedAmount;
+      }
+
+      return sourceWiseInvestment;
+    } catch (e) {
+      throw Exception('Failed to get source-wise investment: $e');
+    }
+  }
+
+  Future<List<HoldingModel>> searchHoldings(String query) async {
+    try {
+      final holdings = await getAllHoldings();
+      return holdings.where((holding) =>
+      holding.symbol.toLowerCase().contains(query.toLowerCase()) ||
+          holding.name.toLowerCase().contains(query.toLowerCase())
+      ).toList();
+    } catch (e) {
+      throw Exception('Failed to search holdings: $e');
+    }
+  }
+
+  Future<void> updateHoldingDetails({
+    required int holdingId,
+    String? name,
+    double? quantity,
+    double? avgPrice,
   }) async {
     try {
-      await _dbHelper.insertTransaction({
-        'symbol': symbol,
-        'type': type,
-        'quantity': quantity,
-        'price': price,
-        'date': date.toIso8601String(),
-        'createdAt': DateTime.now().toIso8601String(),
-      });
+      final holdings = await getAllHoldings();
+      final holdingIndex = holdings.indexWhere((h) => h.id == holdingId);
+
+      if (holdingIndex == -1) {
+        throw Exception('Holding not found');
+      }
+
+      final holding = holdings[holdingIndex];
+      final updatedHolding = holding.copyWith(
+        name: name,
+        quantity: quantity,
+        avgPrice: avgPrice,
+        updatedAt: DateTime.now(),
+      );
+
+      await _dbHelper.updateHolding(updatedHolding);
     } catch (e) {
-      throw Exception('Failed to record transaction: $e');
+      throw Exception('Failed to update holding details: $e');
+    }
+  }
+
+  Future<void> clearAllData() async {
+    try {
+      await _dbHelper.deleteAllHoldingsBySource('dhan');
+      await _dbHelper.deleteAllHoldingsBySource('manual');
+    } catch (e) {
+      throw Exception('Failed to clear all data: $e');
     }
   }
 }

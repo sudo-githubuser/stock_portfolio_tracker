@@ -4,16 +4,12 @@ class ApiConfig {
   static const String dhanBaseUrl = 'https://api.dhan.co/v2';
   static const String alphaVantageBaseUrl = 'https://www.alphavantage.co/query';
 
-  // Secure storage instance
   static const _secureStorage = FlutterSecureStorage();
 
-  // Keys for secure storage
   static const String _dhanAccessTokenKey = 'dhan_access_token';
   static const String _alphaVantageKeyKey = 'alpha_vantage_api_key';
 
-  // For Dhan, we only need access token (client ID is embedded in the JWT token)
   static Future<void> saveDhanCredentials(String clientId, String accessToken) async {
-    // We only save the access token as that's all we need for API calls
     await _secureStorage.write(key: _dhanAccessTokenKey, value: accessToken);
   }
 
@@ -21,9 +17,11 @@ class ApiConfig {
     await _secureStorage.write(key: _alphaVantageKeyKey, value: apiKey);
   }
 
-  // For backward compatibility, we'll still have getDhanClientId but it won't be used
+  static Future<void> setAlphaVantageApiKey(String apiKey) async {
+    await _secureStorage.write(key: _alphaVantageKeyKey, value: apiKey);
+  }
+
   static Future<String?> getDhanClientId() async {
-    // Client ID is not needed for API calls, it's embedded in the JWT token
     return null;
   }
 
@@ -35,7 +33,10 @@ class ApiConfig {
     return await _secureStorage.read(key: _alphaVantageKeyKey);
   }
 
-  // Check if credentials exist
+  static Future<String?> getAlphaVantageApiKey() async {
+    return await _secureStorage.read(key: _alphaVantageKeyKey);
+  }
+
   static Future<bool> hasDhanCredentials() async {
     final accessToken = await getDhanAccessToken();
     return accessToken != null && accessToken.isNotEmpty;
@@ -46,14 +47,12 @@ class ApiConfig {
     return apiKey != null && apiKey.isNotEmpty;
   }
 
-  // Check if all credentials are configured
   static Future<bool> isFullyConfigured() async {
     final hasDhan = await hasDhanCredentials();
     final hasAlpha = await hasAlphaVantageKey();
     return hasDhan && hasAlpha;
   }
 
-  // Clear stored credentials
   static Future<void> clearDhanCredentials() async {
     await _secureStorage.delete(key: _dhanAccessTokenKey);
   }
