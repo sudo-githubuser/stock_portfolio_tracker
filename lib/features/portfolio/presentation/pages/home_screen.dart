@@ -1,188 +1,79 @@
-import 'package:flutter/material.dart';
-import '../../../../core/constants/colors.dart';
-import '../../../../core/services/portfolio_service.dart';
-import '../widgets/portfolio_card.dart';
-
-class HoldingsSummaryScreen extends StatefulWidget {
-  @override
-  _HoldingsSummaryScreenState createState() => _HoldingsSummaryScreenState();
-}
-
-class _HoldingsSummaryScreenState extends State<HoldingsSummaryScreen> {
-  List<dynamic> holdings = [];
-  Map<String, dynamic> portfolioSummary = {};
-  bool isLoading = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPortfolioData();
-  }
-
-  void _loadPortfolioData() async {
-    setState(() => isLoading = true);
-
-    try {
-      final portfolioService = PortfolioService();
-      final holdingsList = await portfolioService.getAllHoldings();
-      final summary = await portfolioService.getPortfolioSummary();
-
-      setState(() {
-        holdings = holdingsList;
-        portfolioSummary = summary;
-        isLoading = false;
-      });
-    } catch (e) {
-      setState(() => isLoading = false);
-      print('Error loading portfolio data: $e');
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Portfolio Card - This will show real data now
-          PortfolioCard(),
-
-          if (isLoading)
-            Center(
-              child: Padding(
-                padding: EdgeInsets.all(20),
-                child: CircularProgressIndicator(),
-              ),
-            )
-          else
-          // Holdings breakdown
-            Padding(
-              padding: EdgeInsets.all(16),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Holdings Breakdown',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.iosText,
-                    ),
-                  ),
-
-                  SizedBox(height: 12),
-
-                  if (holdings.isEmpty)
-                    Container(
-                      padding: EdgeInsets.all(32),
-                      child: Center(
-                        child: Column(
-                          children: [
-                            Icon(Icons.home_rounded, size: 60, color: Colors.grey[400]),
-                            SizedBox(height: 16),
-                            Text(
-                              'No holdings to display',
-                              style: TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
-                  else
-                  // Holdings list
-                    ...holdings.map((holding) => _buildHoldingItem(holding)).toList(),
-                ],
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHoldingItem(dynamic holding) {
-    return Container(
-      margin: EdgeInsets.only(bottom: 8),
-      padding: EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.05),
-            blurRadius: 8,
-            offset: Offset(0, 2),
-          ),
-        ],
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: AppColors.iosBlue.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Text(
-                holding.symbol.substring(0, 2),
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.iosBlue,
-                ),
-              ),
-            ),
-          ),
-          SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  holding.symbol,
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.iosText,
-                  ),
-                ),
-                Text(
-                  '${holding.quantity} shares',
-                  style: TextStyle(
-                    fontSize: 14,
-                    color: AppColors.iosSecondaryText,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                '₹${holding.currentValue.toStringAsFixed(0)}',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.iosText,
-                ),
-              ),
-              Text(
-                '${holding.pnl >= 0 ? '+' : ''}${holding.pnlPercent.toStringAsFixed(2)}%',
-                style: TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
-                  color: holding.pnl >= 0 ? Colors.green : Colors.red,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
+// import 'package:flutter/material.dart';
+// import '../../../../core/constants/colors.dart';
+// import '../../../portfolio/presentation/pages/current_holdings_screen.dart';
+// import '../../../settings/presentation/pages/settings_screen.dart';
+// import 'analysis_screen.dart';
+// import 'holdings_summary_screen.dart';
+//
+// class HomeScreen extends StatefulWidget {
+//   @override
+//   _HomeScreenState createState() => _HomeScreenState();
+// }
+//
+// class _HomeScreenState extends State<HomeScreen> {
+//   int _currentIndex = 0;
+//
+//   final List<Widget> _screens = [
+//     HoldingsSummaryScreen(), // Home
+//     CurrentHoldingsScreen(), // Holdings
+//     AnalysisScreen(), // Analysis
+//     SettingsScreen(), // Settings
+//   ];
+//
+//   @override
+//   Widget build(BuildContext context) {
+//     return Scaffold(
+//       body: _screens[_currentIndex],
+//       bottomNavigationBar: Container(
+//         decoration: BoxDecoration(
+//           boxShadow: [
+//             BoxShadow(
+//               color: Colors.black.withOpacity(0.1),
+//               blurRadius: 10,
+//               offset: Offset(0, -2),
+//             ),
+//           ],
+//         ),
+//         child: ClipRRect(
+//           borderRadius: BorderRadius.only(
+//             topLeft: Radius.circular(25),
+//             topRight: Radius.circular(25),
+//           ),
+//           child: BottomNavigationBar(
+//             currentIndex: _currentIndex,
+//             onTap: (index) => setState(() => _currentIndex = index),
+//             type: BottomNavigationBarType.fixed,
+//             backgroundColor: Colors.white,
+//             selectedItemColor: AppColors.iosBlue,
+//             unselectedItemColor: AppColors.iosGray,
+//             selectedFontSize: 12,
+//             unselectedFontSize: 12,
+//             elevation: 0,
+//             items: [
+//               BottomNavigationBarItem(
+//                 icon: Icon(Icons.home_outlined),
+//                 activeIcon: Icon(Icons.home),
+//                 label: 'Home',
+//               ),
+//               BottomNavigationBarItem(
+//                 icon: Icon(Icons.pie_chart_outline),
+//                 activeIcon: Icon(Icons.pie_chart),
+//                 label: 'Holdings',
+//               ),
+//               BottomNavigationBarItem(
+//                 icon: Icon(Icons.analytics_outlined),
+//                 activeIcon: Icon(Icons.analytics),
+//                 label: 'Analysis',
+//               ),
+//               BottomNavigationBarItem(
+//                 icon: Icon(Icons.settings_outlined),
+//                 activeIcon: Icon(Icons.settings),
+//                 label: 'Settings',
+//               ),
+//             ],
+//           ),
+//         ),
+//       ),
+//     );
+//   }
+// }
