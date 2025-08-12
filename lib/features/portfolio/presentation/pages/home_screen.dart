@@ -78,7 +78,7 @@ class _HoldingsSummaryScreenState extends State<HoldingsSummaryScreen> {
                       child: Center(
                         child: Column(
                           children: [
-                            Icon(Icons.pie_chart_outline, size: 60, color: Colors.grey[400]),
+                            Icon(Icons.home_rounded, size: 60, color: Colors.grey[400]),
                             SizedBox(height: 16),
                             Text(
                               'No holdings to display',

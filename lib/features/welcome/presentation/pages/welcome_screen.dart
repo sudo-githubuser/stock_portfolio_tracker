@@ -13,10 +13,12 @@ class WelcomeScreen extends StatefulWidget {
 
 class _WelcomeScreenState extends State<WelcomeScreen>
     with TickerProviderStateMixin {
+  late AnimationController _backgroundController;
   late AnimationController _logoController;
   late AnimationController _textController;
   late AnimationController _buttonController;
 
+  late Animation<double> _backgroundAnimation;
   late Animation<double> _logoAnimation;
   late Animation<double> _textAnimation;
   late Animation<double> _buttonAnimation;
@@ -24,6 +26,11 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   void initState() {
     super.initState();
+
+    _backgroundController = AnimationController(
+      duration: Duration(milliseconds: 2000),
+      vsync: this,
+    );
 
     _logoController = AnimationController(
       duration: Duration(milliseconds: 1200),
@@ -38,6 +45,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _buttonController = AnimationController(
       duration: Duration(milliseconds: 600),
       vsync: this,
+    );
+
+    _backgroundAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(parent: _backgroundController, curve: Curves.easeInOut)
     );
 
     _logoAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -56,7 +67,10 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   }
 
   void _startAnimations() async {
-    await Future.delayed(Duration(milliseconds: 500));
+    // Start background animation first
+    _backgroundController.forward();
+
+    await Future.delayed(Duration(milliseconds: 800));
     _logoController.forward();
 
     await Future.delayed(Duration(milliseconds: 800));
@@ -66,8 +80,30 @@ class _WelcomeScreenState extends State<WelcomeScreen>
     _buttonController.forward();
   }
 
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          'Coming Soon!',
+          style: TextStyle(color: Colors.white, fontSize: 16),
+        ),
+        backgroundColor: Colors.green,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _navigateToHome() {
+    Get.to(() => HomeScreen(),
+        transition: Transition.cupertino,
+        duration: Duration(milliseconds: 400));
+  }
+
   @override
   void dispose() {
+    _backgroundController.dispose();
     _logoController.dispose();
     _textController.dispose();
     _buttonController.dispose();
@@ -77,163 +113,270 @@ class _WelcomeScreenState extends State<WelcomeScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Container(
-        // UPDATED GRADIENT AS REQUESTED
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.green.shade900, Color(0xFF0D1F14)],
-            begin: Alignment.centerLeft,
-            end: Alignment.centerRight,
-          ),
-        ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              // Logo and text section
-              Expanded(
-                flex: 3,
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // Logo
-                    AnimatedBuilder(
-                      animation: _logoAnimation,
+      body: AnimatedBuilder(
+        animation: _backgroundAnimation,
+        builder: (context, child) {
+          return Container(
+            decoration: BoxDecoration(
+              gradient: RadialGradient(
+                center: Alignment.bottomLeft,
+                radius: _backgroundAnimation.value * 1.5,
+                colors: _backgroundAnimation.value < 0.5
+                    ? [Colors.black, Colors.black]
+                    : [
+                  Color(0xFF1B5E20), // Dark green
+                  Colors.green.shade900,
+                  Color(0xFF0D1F14)
+                ],
+                stops: _backgroundAnimation.value < 0.5
+                    ? [0.0, 1.0]
+                    : [0.0, 0.6, 1.0],
+              ),
+            ),
+            child: SafeArea(
+              child: Column(
+                children: [
+                  // Logo and text section
+                  Expanded(
+                    flex: 3,
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // Logo
+                        AnimatedBuilder(
+                          animation: _logoAnimation,
+                          builder: (context, child) {
+                            return Transform.scale(
+                              scale: _logoAnimation.value,
+                              child: Container(
+                                width: 90,
+                                height: 90,
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  shape: BoxShape.circle,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.3),
+                                      blurRadius: 20,
+                                      offset: Offset(0, 10),
+                                    ),
+                                  ],
+                                ),
+                                child: Icon(
+                                  Icons.trending_up,
+                                  size: 45,
+                                  color: AppColors.iosBlue,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+
+                        SizedBox(height: 30),
+
+                        // Text content
+                        AnimatedBuilder(
+                          animation: _textAnimation,
+                          builder: (context, child) {
+                            return Opacity(
+                              opacity: _textAnimation.value,
+                              child: Column(
+                                children: [
+                                  // App name
+                                  AnimatedTextKit(
+                                    animatedTexts: [
+                                      TypewriterAnimatedText(
+                                        'Track O Folio',
+                                        textStyle: TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.w700,
+                                          color: Colors.white,
+                                          letterSpacing: 1.5,
+                                        ),
+                                        speed: Duration(milliseconds: 150),
+                                      ),
+                                    ],
+                                    totalRepeatCount: 1,
+                                  ),
+
+                                  SizedBox(height: 20),
+
+                                  // Tagline with highlighted words
+                                  RichText(
+                                    textAlign: TextAlign.center,
+                                    text: TextSpan(
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.w500,
+                                        color: Colors.white.withOpacity(0.9),
+                                        height: 1.3,
+                                      ),
+                                      children: [
+                                        TextSpan(
+                                          text: 'Monitor',
+                                          style: TextStyle(
+                                            color: Color(0xFF81C784),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                        TextSpan(text: ' Your Portfolio and Track Market '),
+                                        TextSpan(
+                                          text: 'Trends',
+                                          style: TextStyle(
+                                            color: Color(0xFF81C784),
+                                            fontWeight: FontWeight.w700,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  SizedBox(height: 30),
+
+                                  // Feature highlights
+                                  Column(
+                                    children: [
+                                      _buildFeatureItem(Icons.pie_chart_outline, 'Track Performance'),
+                                      SizedBox(height: 10),
+                                      _buildFeatureItem(Icons.trending_up, 'Real-time Data'),
+                                      SizedBox(height: 10),
+                                      _buildFeatureItem(Icons.security, 'Secure & Reliable'),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  // Button section
+                  Expanded(
+                    flex: 1,
+                    child: AnimatedBuilder(
+                      animation: _buttonAnimation,
                       builder: (context, child) {
                         return Transform.scale(
-                          scale: _logoAnimation.value,
-                          child: Container(
-                            width: 90,
-                            height: 90,
-                            decoration: BoxDecoration(
-                              color: Colors.white,
-                              shape: BoxShape.circle,
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.3),
-                                  blurRadius: 20,
-                                  offset: Offset(0, 10),
+                          scale: _buttonAnimation.value,
+                          child: Padding(
+                            padding: EdgeInsets.symmetric(horizontal: 32, vertical: 20),
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                // Google and Let's Go buttons
+                                Row(
+                                  children: [
+                                    // Google button
+                                    Expanded(
+                                      flex: 1,
+                                      child: Container(
+                                        height: 56,
+                                        child: ElevatedButton(
+                                          onPressed: () {
+                                            _showComingSoon();
+                                            Future.delayed(Duration(seconds: 2), _navigateToHome);
+                                          },
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: Colors.black87,
+                                            elevation: 4,
+                                            shadowColor: Colors.black.withOpacity(0.3),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          child: Container(
+                                            width: 24,
+                                            height: 24,
+                                            decoration: BoxDecoration(
+                                              image: DecorationImage(
+                                                image: NetworkImage(
+                                                  'https://developers.google.com/identity/images/g-logo.png',
+                                                ),
+                                                fit: BoxFit.contain,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+
+                                    SizedBox(width: 16),
+
+                                    // Let's Go button
+                                    Expanded(
+                                      flex: 2,
+                                      child: Container(
+                                        height: 56,
+                                        child: ElevatedButton(
+                                          onPressed: _navigateToHome,
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: Color(0xFF2E7D32),
+                                            elevation: 4,
+                                            shadowColor: Colors.black.withOpacity(0.3),
+                                            shape: RoundedRectangleBorder(
+                                              borderRadius: BorderRadius.circular(16),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            "Let's Go",
+                                            style: TextStyle(
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                SizedBox(height: 24),
+
+                                // Sign up link
+                                Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    Text(
+                                      "Don't have an account? ",
+                                      style: TextStyle(
+                                        color: Colors.white.withOpacity(0.8),
+                                        fontSize: 16,
+                                      ),
+                                    ),
+                                    GestureDetector(
+                                      onTap: () {
+                                        _showComingSoon();
+                                        Future.delayed(Duration(seconds: 2), _navigateToHome);
+                                      },
+                                      child: Text(
+                                        'Sign Up',
+                                        style: TextStyle(
+                                          color: Color(0xFF81C784),
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w700,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor: Color(0xFF81C784),
+                                        ),
+                                      ),
+                                    ),
+                                  ],
                                 ),
                               ],
                             ),
-                            child: Icon(
-                              Icons.trending_up,
-                              size: 45,
-                              color: AppColors.iosBlue,
-                            ),
                           ),
                         );
                       },
                     ),
-
-                    SizedBox(height: 30),
-
-                    // Text content
-                    AnimatedBuilder(
-                      animation: _textAnimation,
-                      builder: (context, child) {
-                        return Opacity(
-                          opacity: _textAnimation.value,
-                          child: Column(
-                            children: [
-                              // Animated title
-                              AnimatedTextKit(
-                                animatedTexts: [
-                                  TypewriterAnimatedText(
-                                    'Welcome to PTA',
-                                    textStyle: TextStyle(
-                                      fontSize: 28,
-                                      fontWeight: FontWeight.w600,
-                                      color: Colors.white,
-                                      letterSpacing: 0.5,
-                                    ),
-                                    speed: Duration(milliseconds: 150),
-                                  ),
-                                ],
-                                totalRepeatCount: 1,
-                              ),
-
-                              SizedBox(height: 16),
-
-                              // Subtitle
-                              Text(
-                                AppStrings.welcomeSubtitle,
-                                style: TextStyle(
-                                  fontSize: 17,
-                                  fontWeight: FontWeight.w400,
-                                  color: Colors.white.withOpacity(0.9),
-                                  letterSpacing: 0.2,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-
-                              SizedBox(height: 30),
-
-                              // Feature highlights
-                              Column(
-                                children: [
-                                  _buildFeatureItem(Icons.pie_chart_outline, 'Track Performance'),
-                                  SizedBox(height: 10),
-                                  _buildFeatureItem(Icons.trending_up, 'Real-time Data'),
-                                  SizedBox(height: 10),
-                                  _buildFeatureItem(Icons.security, 'Secure & Reliable'),
-                                ],
-                              ),
-                            ],
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-
-              // Button section
-              Expanded(
-                flex: 1,
-                child: AnimatedBuilder(
-                  animation: _buttonAnimation,
-                  builder: (context, child) {
-                    return Transform.scale(
-                      scale: _buttonAnimation.value,
-                      child: Padding(
-                        // APPLIED YOUR PADDING PREFERENCES
-                        padding: EdgeInsets.symmetric(horizontal: 110, vertical: 60),
-                        child: SizedBox(
-                          width: double.infinity,
-                          height: 44,
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Get.to(() => HomeScreen(),
-                                  transition: Transition.cupertino,
-                                  duration: Duration(milliseconds: 400));
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: AppColors.iosBlue,
-                              elevation: 0,
-                              shadowColor: Colors.transparent,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(10),
-                              ),
-                            ),
-                            child: Text(
-                              AppStrings.getStarted,
-                              style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                                letterSpacing: 0.2,
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
+            ),
+          );
+        },
       ),
     );
   }

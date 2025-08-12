@@ -3,7 +3,7 @@ import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import '../../../../core/constants/colors.dart';
 import '../../../../core/constants/strings.dart';
 import '../widgets/side_menu.dart';
-import '../../../portfolio/presentation/pages/holdings_summary_screen.dart';
+import '../../../portfolio/presentation/pages/home_screen.dart';
 import '../../../portfolio/presentation/pages/current_holdings_screen.dart';
 import '../../../portfolio/presentation/pages/analysis_screen.dart';
 

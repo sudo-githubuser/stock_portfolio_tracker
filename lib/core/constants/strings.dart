@@ -9,7 +9,7 @@ class AppStrings {
   static const String addStock = 'Add Stock';
 
   // Tab names
-  static const String holdingsSummary = 'Holdings Summary';
+  static const String holdingsSummary = 'Home';
   static const String currentHoldings = 'Current Holdings';
   static const String analysis = 'Analysis';
 
