@@ -13,19 +13,12 @@ class CurrentHoldingsScreen extends StatefulWidget {
 }
 
 class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with TickerProviderStateMixin {
-  TabController? _tabController;
   List<HoldingModel> _allHoldings = [];
-  List<HoldingModel> _dhanHoldings = [];
-  List<HoldingModel> _mtfHoldings = [];
-  List<HoldingModel> _manualHoldings = [];
-
   bool _isFetchingDhan = false;
   bool _isUpdatingPrices = false;
-  String _sortBy = 'name';
+  String _sortBy = 'stock_name';
   bool _isAscending = true;
-
   Map<String, bool> _expandedStocks = {};
-  Set<String> _collapsedSections = {};
 
   int _totalStocksToUpdate = 0;
   int _stocksUpdated = 0;
@@ -40,7 +33,6 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
     _setupAnimations();
     _loadHoldings();
   }
@@ -80,17 +72,9 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
 
       setState(() {
         _allHoldings = holdings;
-        _dhanHoldings = holdings.where((h) => h.source == 'dhan').toList();
-        _mtfHoldings = holdings.where((h) => h.source == 'dhan' && h.isMTF == true).toList();
-        _manualHoldings = holdings.where((h) => h.source == 'manual').toList();
       });
 
       _sortHoldings();
-      print('Loaded ${holdings.length} holdings');
-      print('MTF holdings: ${_mtfHoldings.length}');
-      for (var holding in _mtfHoldings) {
-        print('MTF Stock: ${holding.symbol} - isMTF: ${holding.isMTF}');
-      }
     } catch (e) {
       print('Error loading holdings: $e');
       Get.snackbar(
@@ -106,11 +90,14 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
     final comparator = (HoldingModel a, HoldingModel b) {
       int result = 0;
       switch (_sortBy) {
-        case 'name':
+        case 'stock_name':
           result = a.symbol.compareTo(b.symbol);
           break;
-        case 'invested':
+        case 'invested_amount':
           result = a.investedAmount.compareTo(b.investedAmount);
+          break;
+        case 'current_value':
+          result = a.currentValue.compareTo(b.currentValue);
           break;
         case 'pnl':
           result = a.pnl.compareTo(b.pnl);
@@ -121,9 +108,6 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
 
     setState(() {
       _allHoldings.sort(comparator);
-      _dhanHoldings.sort(comparator);
-      _mtfHoldings.sort(comparator);
-      _manualHoldings.sort(comparator);
     });
   }
 
@@ -207,10 +191,7 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
         });
 
         try {
-          print('Fetching price for ${holding.symbol}...');
           final stockQuote = await alphaVantageService.fetchStockQuote(holding.symbol);
-          print('Received price ${stockQuote.currentPrice} for ${holding.symbol}');
-
           final updatedHolding = holding.copyWith(
             currentPrice: stockQuote.currentPrice,
             updatedAt: DateTime.now(),
@@ -224,25 +205,6 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
             final allIndex = _allHoldings.indexWhere((h) => h.id == holding.id);
             if (allIndex != -1) {
               _allHoldings[allIndex] = updatedHolding;
-            }
-
-            if (updatedHolding.source == 'dhan') {
-              final dhanIndex = _dhanHoldings.indexWhere((h) => h.id == holding.id);
-              if (dhanIndex != -1) {
-                _dhanHoldings[dhanIndex] = updatedHolding;
-              }
-
-              if (updatedHolding.isMTF == true) {
-                final mtfIndex = _mtfHoldings.indexWhere((h) => h.id == holding.id);
-                if (mtfIndex != -1) {
-                  _mtfHoldings[mtfIndex] = updatedHolding;
-                }
-              }
-            } else {
-              final manualIndex = _manualHoldings.indexWhere((h) => h.id == holding.id);
-              if (manualIndex != -1) {
-                _manualHoldings[manualIndex] = updatedHolding;
-              }
             }
           });
 
@@ -348,7 +310,7 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
                   Navigator.pop(context);
                   Get.snackbar(
                     'Setup Required',
-                    'Please setup your Dhan API keys from Side Menu > API Keys',
+                    'Please setup your Dhan API keys from Settings > API Keys',
                     backgroundColor: Colors.orange.withOpacity(0.1),
                     colorText: Colors.orange,
                   );
@@ -459,7 +421,6 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
 
   @override
   void dispose() {
-    _tabController?.dispose();
     _waveAnimationController.dispose();
     _arrowAnimationController.dispose();
     super.dispose();
@@ -480,9 +441,28 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
         color: AppColors.iosBlue,
         child: Column(
           children: [
+            SafeArea(
+              child: Padding(
+                padding: EdgeInsets.all(20),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Current Holdings',
+                      style: TextStyle(
+                        fontSize: 22,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.iosText,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+
             if (_isFetchingDhan) ...[
               Container(
-                padding: EdgeInsets.all(20),
+                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                 child: Container(
                   padding: EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -737,79 +717,43 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
               ),
             ],
 
+            // Sort Section - Updated to match the image
             Container(
-              margin: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: TabBar(
-                controller: _tabController,
-                labelColor: Colors.white,
-                unselectedLabelColor: AppColors.iosGray,
-                indicator: BoxDecoration(
-                  borderRadius: BorderRadius.circular(16),
-                  gradient: LinearGradient(
-                    colors: [AppColors.iosBlue, AppColors.iosBlue.withOpacity(0.8)],
-                  ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: AppColors.iosBlue.withOpacity(0.3),
-                      blurRadius: 8,
-                      offset: Offset(0, 2),
-                    ),
-                  ],
-                ),
-                indicatorSize: TabBarIndicatorSize.tab,
-                dividerColor: Colors.transparent,
-                labelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
-                unselectedLabelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
-                tabs: [
-                  Container(height: 50, child: Center(child: Text('All (${_allHoldings.length})'))),
-                  Container(height: 50, child: Center(child: Text('Dhan (${_dhanHoldings.length})'))),
-                  Container(height: 50, child: Center(child: Text('MTF (${_mtfHoldings.length})'))),
-                  Container(height: 50, child: Center(child: Text('Manual (${_manualHoldings.length})'))),
-                ],
-              ),
-            ),
-
-            Container(
-              padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Row(
                 children: [
-                  Text('Sort by:', style: TextStyle(fontSize: 14, color: AppColors.iosGray)),
-                  SizedBox(width: 8),
-                  _buildSortButton('Name', 'name'),
-                  SizedBox(width: 8),
-                  _buildSortButton('Invested', 'invested'),
-                  SizedBox(width: 8),
-                  _buildSortButton('P&L', 'pnl'),
-                  Spacer(),
-                  IconButton(
-                    icon: Icon(
-                      _isAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                      color: AppColors.iosBlue,
-                      size: 20,
+                  Text(
+                    'SORT BY:',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.iosGray,
+                      letterSpacing: 0.5,
                     ),
-                    onPressed: () {
-                      setState(() => _isAscending = !_isAscending);
-                      _sortHoldings();
-                    },
+                  ),
+                  SizedBox(width: 20),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      child: Row(
+                        children: [
+                          _buildSortButton('Stock Name', 'stock_name'),
+                          SizedBox(width: 12),
+                          _buildSortButton('Invested Amount', 'invested_amount'),
+                          SizedBox(width: 12),
+                          _buildSortButton('Current Value', 'current_value'),
+                          SizedBox(width: 12),
+                          _buildSortButton('Unrealized P&L(%)', 'pnl'),
+                        ],
+                      ),
+                    ),
                   ),
                 ],
               ),
             ),
 
             Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _buildHoldingsList(_allHoldings, showSections: true),
-                  _buildHoldingsList(_dhanHoldings),
-                  _buildHoldingsList(_mtfHoldings, showMTF: true),
-                  _buildHoldingsList(_manualHoldings),
-                ],
-              ),
+              child: _buildHoldingsList(),
             ),
           ],
         ),
@@ -821,27 +765,59 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
     final isSelected = _sortBy == sortBy;
     return GestureDetector(
       onTap: () {
-        setState(() => _sortBy = sortBy);
+        if (_sortBy == sortBy) {
+          setState(() => _isAscending = !_isAscending);
+        } else {
+          setState(() {
+            _sortBy = sortBy;
+            _isAscending = true;
+          });
+        }
         _sortHoldings();
       },
       child: Container(
-        padding: EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         decoration: BoxDecoration(
           color: isSelected ? AppColors.iosBlue : Colors.white,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: isSelected ? AppColors.iosBlue : AppColors.iosSeparator),
-          boxShadow: isSelected ? [BoxShadow(color: AppColors.iosBlue.withOpacity(0.2), blurRadius: 4, offset: Offset(0, 2))] : null,
+          border: Border.all(
+            color: isSelected ? AppColors.iosBlue : AppColors.iosSeparator,
+          ),
+          boxShadow: isSelected ? [
+            BoxShadow(
+              color: AppColors.iosBlue.withOpacity(0.2),
+              blurRadius: 4,
+              offset: Offset(0, 2),
+            ),
+          ] : null,
         ),
-        child: Text(
-          title,
-          style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : AppColors.iosText, fontWeight: FontWeight.w600),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              title,
+              style: TextStyle(
+                fontSize: 12,
+                color: isSelected ? Colors.white : AppColors.iosText,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            if (isSelected) ...[
+              SizedBox(width: 4),
+              Icon(
+                _isAscending ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
+                color: Colors.white,
+                size: 16,
+              ),
+            ],
+          ],
         ),
       ),
     );
   }
 
-  Widget _buildHoldingsList(List<HoldingModel> holdings, {bool showSections = false, bool showMTF = false}) {
-    if (holdings.isEmpty) {
+  Widget _buildHoldingsList() {
+    if (_allHoldings.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -861,147 +837,90 @@ class _CurrentHoldingsScreenState extends State<CurrentHoldingsScreen> with Tick
       );
     }
 
-    if (showSections) {
-      return _buildSectionedList(holdings);
-    }
-
     return ListView.builder(
       padding: EdgeInsets.all(16),
-      itemCount: holdings.length,
-      itemBuilder: (context, index) => _buildStockItem(holdings[index], showMTF: showMTF),
+      itemCount: _allHoldings.length,
+      itemBuilder: (context, index) => _buildStockItem(_allHoldings[index]),
     );
   }
 
-  Widget _buildSectionedList(List<HoldingModel> holdings) {
-    Map<String, List<HoldingModel>> sections = {
-      'Dhan Holdings': holdings.where((h) => h.source == 'dhan').toList(),
-      'Manual Holdings': holdings.where((h) => h.source == 'manual').toList(),
-    };
-
-    return ListView.builder(
-      padding: EdgeInsets.all(16),
-      itemCount: sections.keys.length,
-      itemBuilder: (context, index) {
-        String sectionTitle = sections.keys.elementAt(index);
-        List<HoldingModel> sectionHoldings = sections[sectionTitle]!;
-
-        if (sectionHoldings.isEmpty) return SizedBox.shrink();
-
-        bool isCollapsed = _collapsedSections.contains(sectionTitle);
-
-        return Column(
-          children: [
-            GestureDetector(
-              onTap: () {
-                setState(() {
-                  if (isCollapsed) {
-                    _collapsedSections.remove(sectionTitle);
-                  } else {
-                    _collapsedSections.add(sectionTitle);
-                  }
-                });
-              },
-              child: Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [AppColors.iosBlue.withOpacity(0.1), AppColors.iosBlue.withOpacity(0.05)]),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 40,
-                      height: 40,
-                      decoration: BoxDecoration(color: AppColors.iosBlue, borderRadius: BorderRadius.circular(10)),
-                      child: Icon(sectionTitle.contains('Dhan') ? Icons.cloud : Icons.person, color: Colors.white, size: 20),
-                    ),
-                    SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(sectionTitle, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.iosText)),
-                          Text('${sectionHoldings.length} stocks', style: TextStyle(fontSize: 12, color: AppColors.iosSecondaryText)),
-                        ],
-                      ),
-                    ),
-                    Container(
-                      padding: EdgeInsets.all(8),
-                      decoration: BoxDecoration(color: AppColors.iosBlue.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                      child: Icon(isCollapsed ? Icons.expand_more : Icons.expand_less, color: AppColors.iosBlue),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            if (!isCollapsed) ...[
-              SizedBox(height: 8),
-              ...sectionHoldings.map((holding) => _buildStockItem(holding)).toList(),
-            ],
-            SizedBox(height: 16),
-          ],
-        );
-      },
-    );
-  }
-
-  Widget _buildStockItem(HoldingModel holding, {bool showMTF = false}) {
+  Widget _buildStockItem(HoldingModel holding) {
     bool isExpanded = _expandedStocks[holding.symbol] ?? false;
 
     return Container(
       margin: EdgeInsets.only(bottom: 8),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 8, offset: Offset(0, 2))],
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 6, offset: Offset(0, 2))],
       ),
       child: Column(
         children: [
           ListTile(
-            contentPadding: EdgeInsets.all(16),
-            leading: Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(colors: [AppColors.iosBlue, AppColors.iosBlue.withOpacity(0.7)]),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  holding.symbol.length >= 2 ? holding.symbol.substring(0, 2) : holding.symbol,
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
-                ),
-              ),
-            ),
+            contentPadding: EdgeInsets.all(12),
             title: Row(
               children: [
-                Text(holding.symbol, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.iosText)),
-                if (showMTF || holding.isMTF == true) ...[
-                  SizedBox(width: 8),
-                  Container(
-                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(colors: [Colors.orange, Colors.deepOrange]),
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Text('MTF', style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: Colors.white)),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        holding.symbol,
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.iosText,
+                        ),
+                      ),
+                      Text(
+                        '${holding.formattedQuantity} shares',
+                        style: TextStyle(
+                          fontSize: 13,
+                          color: AppColors.iosSecondaryText,
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ],
-            ),
-            subtitle: Text('${holding.formattedQuantity} shares', style: TextStyle(fontSize: 14, color: AppColors.iosSecondaryText)),
-            trailing: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(holding.formattedCurrentPrice, style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppColors.iosText)),
-                Text(holding.formattedPnLPercent, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: holding.pnlColor)),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Text(
+                      holding.formattedCurrentPrice,
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.iosText,
+                      ),
+                    ),
+                    Text(
+                      holding.formattedPnLPercent,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: holding.pnlColor,
+                      ),
+                    ),
+                  ],
+                ),
+                SizedBox(width: 8),
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(width: 6, height: 6, decoration: BoxDecoration(color: Colors.red, shape: BoxShape.circle)),
+                    SizedBox(width: 2),
+                    Container(width: 6, height: 6, decoration: BoxDecoration(color: Colors.green, shape: BoxShape.circle)),
+                    SizedBox(width: 2),
+                    Container(width: 6, height: 6, decoration: BoxDecoration(color: Colors.blue, shape: BoxShape.circle)),
+                  ],
+                ),
               ],
             ),
             onTap: () {
               setState(() => _expandedStocks[holding.symbol] = !isExpanded);
             },
           ),
+
           if (isExpanded) ...[
             Divider(height: 1),
             Padding(

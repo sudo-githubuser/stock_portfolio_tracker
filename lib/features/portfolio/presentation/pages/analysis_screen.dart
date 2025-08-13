@@ -5,189 +5,210 @@ import '../../../../core/constants/colors.dart';
 class AnalysisScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: EdgeInsets.all(16),
+    return Scaffold(
+      backgroundColor: AppColors.iosBackground,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _buildHeader(),
+              SizedBox(height: 32),
+              _buildComingSoonCard(),
+              SizedBox(height: 24),
+              _buildFeaturesList(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHeader() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Text(
+          'Analysis',
+          style: TextStyle(
+            fontSize: 24,
+            fontWeight: FontWeight.w700,
+            color: AppColors.iosText,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildComingSoonCard() {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [Colors.purple.withOpacity(0.1), Colors.blue.withOpacity(0.1)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.purple.withOpacity(0.2)),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [Colors.purple, Colors.blue]),
+              borderRadius: BorderRadius.circular(40),
+            ),
+            child: Icon(
+              Icons.analytics,
+              size: 40,
+              color: Colors.white,
+            ),
+          ),
+          SizedBox(height: 16),
           Text(
-            'Portfolio Analysis',
+            'Advanced Analytics',
             style: TextStyle(
               fontSize: 20,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: AppColors.iosText,
             ),
           ),
-
-          SizedBox(height: 20),
-
-          // Chart container
-          Container(
-            height: 250,
-            padding: EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(12),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
-                  blurRadius: 10,
-                  offset: Offset(0, 2),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Portfolio Performance (30 Days)',
-                  style: TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.iosText,
-                  ),
-                ),
-                SizedBox(height: 16),
-                Expanded(
-                  child: LineChart(
-                    LineChartData(
-                      gridData: FlGridData(show: false),
-                      titlesData: FlTitlesData(show: false),
-                      borderData: FlBorderData(show: false),
-                      lineBarsData: [
-                        LineChartBarData(
-                          spots: _generateSpots(),
-                          isCurved: true,
-                          color: AppColors.iosBlue,
-                          barWidth: 3,
-                          dotData: FlDotData(show: false),
-                          belowBarData: BarAreaData(
-                            show: true,
-                            color: AppColors.iosBlue.withOpacity(0.1),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
+          SizedBox(height: 8),
+          Text(
+            'Coming Soon',
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.w600,
+              color: Colors.purple,
             ),
           ),
-
-          SizedBox(height: 20),
-
-          // Analysis cards - FIXED: Using proper layout
-          SizedBox(
-            height: 300, // Fixed height for grid
-            child: GridView.count(
-              crossAxisCount: 2,
-              crossAxisSpacing: 12,
-              mainAxisSpacing: 12,
-              childAspectRatio: 1.5,
-              physics: NeverScrollableScrollPhysics(), // Disable grid scrolling
-              children: [
-                _buildAnalysisCard(
-                  title: 'Diversification',
-                  value: '85%',
-                  subtitle: 'Well diversified',
-                  color: Colors.green,
-                ),
-                _buildAnalysisCard(
-                  title: 'Risk Level',
-                  value: 'Medium',
-                  subtitle: 'Balanced portfolio',
-                  color: Colors.orange,
-                ),
-                _buildAnalysisCard(
-                  title: 'Best Performer',
-                  value: 'AAPL',
-                  subtitle: '+12.5% this month',
-                  color: AppColors.iosBlue,
-                ),
-                _buildAnalysisCard(
-                  title: 'Total Return',
-                  value: '8.9%',
-                  subtitle: 'Last 12 months',
-                  color: Colors.purple,
-                ),
-              ],
+          SizedBox(height: 8),
+          Text(
+            'We\'re working on powerful analytics tools to help you make better investment decisions.',
+            style: TextStyle(
+              fontSize: 14,
+              color: AppColors.iosSecondaryText,
             ),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  List<FlSpot> _generateSpots() {
-    List<FlSpot> spots = [];
-    for (int i = 0; i < 30; i++) {
-      spots.add(FlSpot(i.toDouble(), 100 + (i * 2) + (i % 5) * 10));
-    }
-    return spots;
+  Widget _buildFeaturesList() {
+    final features = [
+      {
+        'icon': Icons.show_chart,
+        'title': 'Performance Charts',
+        'subtitle': 'Visualize your portfolio performance over time',
+      },
+      {
+        'icon': Icons.pie_chart,
+        'title': 'Asset Allocation',
+        'subtitle': 'Analyze your investment distribution',
+      },
+      {
+        'icon': Icons.trending_up,
+        'title': 'Trend Analysis',
+        'subtitle': 'Identify market trends and patterns',
+      },
+      {
+        'icon': Icons.compare_arrows,
+        'title': 'Benchmark Comparison',
+        'subtitle': 'Compare against market indices',
+      },
+      {
+        'icon': Icons.insights,
+        'title': 'AI Insights',
+        'subtitle': 'Get personalized investment recommendations',
+      },
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Upcoming Features',
+          style: TextStyle(
+            fontSize: 20,
+            fontWeight: FontWeight.w700,
+            color: AppColors.iosText,
+          ),
+        ),
+        SizedBox(height: 16),
+        ...features.map((feature) => _buildFeatureItem(
+          icon: feature['icon'] as IconData,
+          title: feature['title'] as String,
+          subtitle: feature['subtitle'] as String,
+        )).toList(),
+      ],
+    );
   }
 
-  Widget _buildAnalysisCard({
+  Widget _buildFeatureItem({
+    required IconData icon,
     required String title,
-    required String value,
     required String subtitle,
-    required Color color,
   }) {
     return Container(
-      padding: EdgeInsets.all(12), // Reduced padding
+      margin: EdgeInsets.only(bottom: 12),
+      padding: EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withOpacity(0.04),
             blurRadius: 8,
             offset: Offset(0, 2),
           ),
         ],
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      child: Row(
         children: [
-          Row(
-            children: [
-              Container(
-                width: 8,
-                height: 8,
-                decoration: BoxDecoration(
-                  color: color,
-                  borderRadius: BorderRadius.circular(4),
-                ),
-              ),
-              SizedBox(width: 8),
-              Expanded(
-                child: Text(
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.purple.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(icon, color: Colors.purple, size: 24),
+          ),
+          SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
                   title,
                   style: TextStyle(
-                    fontSize: 13, // Reduced font size
-                    color: AppColors.iosSecondaryText,
-                    fontWeight: FontWeight.w500,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.iosText,
                   ),
-                  overflow: TextOverflow.ellipsis,
                 ),
-              ),
-            ],
-          ),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18, // Reduced font size
-              fontWeight: FontWeight.w700,
-              color: AppColors.iosText,
+                SizedBox(height: 4),
+                Text(
+                  subtitle,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: AppColors.iosSecondaryText,
+                  ),
+                ),
+              ],
             ),
           ),
-          Text(
-            subtitle,
-            style: TextStyle(
-              fontSize: 11, // Reduced font size
-              color: AppColors.iosSecondaryText,
-            ),
-            overflow: TextOverflow.ellipsis,
+          Icon(
+            Icons.schedule,
+            color: Colors.orange,
+            size: 20,
           ),
         ],
       ),
